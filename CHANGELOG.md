@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-12
+
 ### Added
 
 - Detect a `<mount>.<secret>` pattern in the project name and resolve it against a HashiCorp
@@ -29,4 +31,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/commits/main
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/cok3-byte/vaultLink/releases/tag/1.0.0
