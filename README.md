@@ -1,4 +1,14 @@
-# VaultLink
+<p align="center">
+  <img src=".github/assets/logo.png" alt="VaultLink logo" width="120">
+</p>
+
+<h1 align="center">VaultLink</h1>
+
+<p align="center">
+  <a href="https://github.com/cok3-byte/vaultLink/actions/workflows/build.yml"><img src="https://github.com/cok3-byte/vaultLink/actions/workflows/build.yml/badge.svg" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <img src="https://img.shields.io/badge/IntelliJ%20Platform-251--262.*-orange.svg" alt="IntelliJ Platform compatibility: 251-262.*">
+</p>
 
 An IntelliJ IDEA plugin that detects a [HashiCorp Vault](https://www.vaultproject.io/) mount/secret
 encoded in the project name, authenticates against Vault, and exposes the secret's keys as
@@ -63,6 +73,9 @@ This configuration is global (Application-level), shared by every project open i
 installation.
 
 ## Usage
+
+<!-- TODO: screenshots — Tool Window (Login/Fetch secret/Choose version/Logout, masked variables
+     with per-row copy) and Settings → Tools → VaultLink. Capture via `./gradlew runIde`. -->
 
 1. Open a project named `<mount>.<secret>`.
 2. Open the **VaultLink** Tool Window (right sidebar).
