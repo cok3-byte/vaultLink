@@ -16,6 +16,8 @@ either injected live into your Run/Debug Configuration, written to a `.env` file
 
 - **Four authentication methods**, configurable per IDE installation: OIDC (browser login against
   your corporate IdP), LDAP, Userpass, and Token (bring an already-issued token).
+  **Note:** Only Token and LDAP authentication are currently available; OIDC and Userpass are
+  planned but not yet implemented.
 - **Two ways to apply variables**: live injection into JVM Run/Debug Configurations (never
   written to the run configuration's XML) and/or a generated `.env` file — pick one, the other,
   or let it auto-decide.
