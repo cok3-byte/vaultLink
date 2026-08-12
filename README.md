@@ -77,9 +77,6 @@ installation.
 ./gradlew verifyPlugin     # validate compatibility against the declared build range
 ```
 
-See [`genera-un-plugin-de-linear-cerf.md`](genera-un-plugin-de-linear-cerf.md) for the full
-architecture and design notes.
-
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
