@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.vaultlink</id>
     <name>VaultLink</name>
-    <vendor url="https://github.com/">VaultLink</vendor>
+    <vendor url="https://github.com/cok3-byte/vaultLink">VaultLink</vendor>
     <description><![CDATA[
         Detects a HashiCorp Vault mount/secret encoded in the project name, authenticates via
         OIDC, LDAP, Token, or Userpass, and exposes the secret's keys as environment variables
