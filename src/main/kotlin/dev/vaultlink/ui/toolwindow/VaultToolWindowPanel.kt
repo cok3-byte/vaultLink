@@ -2,13 +2,17 @@ package dev.vaultlink.ui.toolwindow
 
 import com.intellij.execution.CommonJavaRunConfigurationParameters
 import com.intellij.execution.RunManager
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.Row
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBUI
+import dev.vaultlink.core.auth.AuthResult
+import dev.vaultlink.core.credentials.VaultSessionStatus
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultSecretData
 import dev.vaultlink.core.vault.model.VaultSecretMetadata
@@ -25,6 +29,7 @@ import java.awt.BorderLayout
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.ScrollPaneConstants
 
 /** null [configName] represents "apply to every compatible Run Configuration". */
 private data class RunConfigEntry(val displayName: String, val configName: String?) {
@@ -44,8 +49,10 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     private val variablesPanel = SecretVariablesPanel()
     private var versionLabel: JLabel? = null
     private var sourceLabel: JLabel? = null
+    private var loginButton: JButton? = null
     private var fetchButton: JButton? = null
     private var chooseVersionButton: JButton? = null
+    private var logoutButton: JButton? = null
     private lateinit var browseRow: Row
 
     init {
@@ -89,13 +96,18 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                 }
             }
 
-            group("Action") {
+            group("Actions") {
                 row {
+                    loginButton = button("Login") { login(service) }.component.apply { icon = AllIcons.Actions.Execute }
                     fetchButton = button("Fetch secret") { fetchSecret(service, service.resolveSecretPath()) }
-                        .enabled(service.resolveSecretPath() != null).component
+                        .enabled(service.resolveSecretPath() != null).component.apply { icon = AllIcons.Actions.Download }
+                }.rowComment("Login authenticates ahead of time; Fetch secret authenticates (if needed) and applies the secret.")
+                row {
                     chooseVersionButton = button("Choose version...") { chooseVersion(service, service.resolveSecretPath()) }
-                        .enabled(service.resolveSecretPath() != null).component
-                }.rowComment("Authenticates (if needed) and applies the secret according to the strategy configured in Settings.")
+                        .enabled(service.resolveSecretPath() != null).component.apply { icon = AllIcons.Vcs.History }
+                    logoutButton = button("Logout") { logout(service) }
+                        .enabled(VaultSessionStatus.isActive()).component.apply { icon = AllIcons.Actions.Exit }
+                }
             }
 
             runConfigGroupRow = group("Run Config Target") {
@@ -116,7 +128,44 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         runConfigGroupRow.visible(showRunConfigTarget)
         browseRow.visible(projectSettings.resolutionMode == SecretResolutionMode.MANUAL)
         content.border = JBUI.Borders.empty(12)
-        add(content, BorderLayout.CENTER)
+
+        val scrollPane = JBScrollPane(content).apply {
+            border = JBUI.Borders.empty()
+            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        }
+        add(scrollPane, BorderLayout.CENTER)
+    }
+
+    private fun login(service: VaultProjectService) {
+        object : Task.Backgroundable(project, "VaultLink: logging in...", true) {
+            private var result: Result<AuthResult>? = null
+
+            override fun run(indicator: ProgressIndicator) {
+                result = runCatching { service.login() }
+            }
+
+            override fun onSuccess() {
+                if (result?.isSuccess == true) {
+                    statusPanel.refresh()
+                    refreshSessionButtons()
+                }
+                val method = VaultApplicationSettingsService.getInstance().state.authMethod
+                LoginNotifier.notifyResult(project, method, result ?: Result.failure(IllegalStateException("Unknown error")))
+            }
+        }.queue()
+    }
+
+    private fun logout(service: VaultProjectService) {
+        service.logout()
+        statusPanel.refresh()
+        refreshSessionButtons()
+        variablesPanel.setSecret(null)
+        LoginNotifier.notifySuccess(project, "Vault: logged out", "Session cleared")
+    }
+
+    private fun refreshSessionButtons() {
+        logoutButton?.isEnabled = VaultSessionStatus.isActive()
     }
 
     private fun sourceText(): String {
@@ -159,6 +208,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                 val secret = result?.getOrNull()
                 if (secret != null) {
                     statusPanel.refresh()
+                    refreshSessionButtons()
                     variablesPanel.setSecret(secret)
                     LoginNotifier.notifySuccess(
                         project,

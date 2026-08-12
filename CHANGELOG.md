@@ -8,6 +8,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-12
+
+### Added
+
+- Tool Window: explicit **Login** and **Logout** actions, so a session can be started/ended
+  without needing to fetch a secret first.
+- Tool Window: per-variable copy-to-clipboard button in the masked variables view — copies the
+  real value even while it's hidden.
+- Tool Window: content now scrolls, so it stays usable as more groups/variables are added.
+- Plugin marketplace icon (`pluginIcon.png` / `pluginIcon@2x.png`), shown in Settings → Plugins.
+
+### Changed
+
+- Tool Window: "Action" group renamed to "Actions" and reorganized into a 2×2 grid (Login/Fetch
+  secret, Choose version/Logout) with icons for each action.
+- Session status summary no longer shows an expiry countdown — just whether a session is active
+  and via which method.
+- `plugin.xml` vendor URL now points to the project's GitHub repository instead of a placeholder.
+
 ## [1.0.0] - 2026-08-12
 
 ### Added
@@ -31,5 +50,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/cok3-byte/vaultLink/releases/tag/1.0.0

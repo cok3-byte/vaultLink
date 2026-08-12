@@ -3,8 +3,6 @@ package dev.vaultlink.core.credentials
 import dev.vaultlink.core.auth.AuthMethod
 import dev.vaultlink.core.auth.AuthResult
 import java.time.Instant
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 
 /**
  * In-memory session state (never to disk, same spirit as [VaultCredentialsStore]): only
@@ -31,15 +29,7 @@ object VaultSessionStatus {
     /** Short text for the UI; never includes the token's value. */
     fun summary(): String {
         val info = current ?: return "No active session"
-        val expiry = info.expiresAt?.let {
-            if (Instant.now().isAfter(it)) {
-                " (possibly expired)"
-            } else {
-                val minutes = ChronoUnit.MINUTES.between(Instant.now(), it)
-                " (expires ~${DateTimeFormatter.ofPattern("HH:mm").format(it.atZone(java.time.ZoneId.systemDefault()))}, in ${minutes}min)"
-            }
-        } ?: ""
-        return "Active session (${info.method})$expiry"
+        return "Active session (${info.method})"
     }
 
     fun isActive(): Boolean = current != null
