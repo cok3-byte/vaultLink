@@ -1,0 +1,26 @@
+# Build outputs
+.gradle/
+.kotlin/
+build/
+out/
+
+# IntelliJ Platform Gradle Plugin cache (downloaded IDE distributions, verifier reports)
+.intellijPlatform/
+
+# IDE project files
+.idea/
+*.iml
+local.properties
+
+# JVM crash dumps
+*.hprof
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code session data
+.claude/

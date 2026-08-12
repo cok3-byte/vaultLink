@@ -1,0 +1,33 @@
+<idea-plugin>
+    <id>dev.vaultlink</id>
+    <name>VaultLink</name>
+    <vendor url="https://github.com/">VaultLink</vendor>
+    <description><![CDATA[
+        Detects a HashiCorp Vault mount/secret encoded in the project name, authenticates via
+        OIDC, LDAP, Token, or Userpass, and exposes the secret's keys as environment variables
+        for running and debugging the project.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="dev.vaultlink.services.VaultApplicationSettingsService"/>
+        <projectService serviceImplementation="dev.vaultlink.services.VaultProjectService"/>
+        <projectService serviceImplementation="dev.vaultlink.services.VaultProjectSettingsService"/>
+        <applicationConfigurable parentId="tools" instance="dev.vaultlink.ui.settings.VaultSettingsConfigurable"
+            id="dev.vaultlink.settings" displayName="VaultLink"/>
+        <toolWindow id="VaultLink" anchor="right" factoryClass="dev.vaultlink.ui.toolwindow.VaultToolWindowFactory"
+            icon="/icons/vault.svg"/>
+        <postStartupActivity implementation="dev.vaultlink.listeners.VaultProjectOpenActivity"/>
+        <runConfigurationExtension implementation="dev.vaultlink.integration.runconfig.VaultEnvRunConfigurationExtension"/>
+        <notificationGroup id="VaultLink" displayType="BALLOON"/>
+    </extensions>
+
+    <extensionPoints>
+        <extensionPoint qualifiedName="dev.vaultlink.vaultAuthStrategy"
+            interface="dev.vaultlink.core.auth.VaultAuthStrategy" dynamic="true"/>
+        <extensionPoint qualifiedName="dev.vaultlink.envApplierStrategy"
+            interface="dev.vaultlink.integration.runconfig.EnvApplierStrategy" dynamic="true"/>
+    </extensionPoints>
+</idea-plugin>
