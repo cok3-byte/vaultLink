@@ -13,6 +13,7 @@ class VaultProjectSettingsState {
     var lastResolvedMount: String? = null
     var lastResolvedSecretPath: String? = null
     var envApplyStrategyOverride: EnvApplyStrategy? = null
+    var targetRunConfigurationName: String? = null // null = apply to every compatible Run Configuration
 }
 
 /** Project-specific overrides; XML in .idea/ with roamingType DISABLED, added to .gitignore when created. */

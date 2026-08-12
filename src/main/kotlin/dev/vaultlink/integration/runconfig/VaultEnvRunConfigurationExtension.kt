@@ -5,7 +5,10 @@ import com.intellij.execution.RunConfigurationExtension
 import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunnerSettings
+import dev.vaultlink.services.EnvApplyStrategy
+import dev.vaultlink.services.VaultApplicationSettingsService
 import dev.vaultlink.services.VaultProjectService
+import dev.vaultlink.services.VaultProjectSettingsService
 
 /**
  * Injects the secret's variables into Run/Debug at runtime (updateJavaParameters) — never
@@ -24,6 +27,11 @@ class VaultEnvRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?,
     ) {
         if (configuration !is CommonJavaRunConfigurationParameters) return
+        if (VaultApplicationSettingsService.getInstance().state.envApplyStrategy == EnvApplyStrategy.DOTENV_ONLY) return
+
+        val target = VaultProjectSettingsService.getInstance(configuration.project).state.targetRunConfigurationName
+        if (target != null && target != configuration.name) return
+
         val env = resolveEnv(configuration) ?: return
         JavaEnvApplier().apply { bind(params) }.apply(env)
     }

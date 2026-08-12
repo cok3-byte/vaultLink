@@ -1,22 +1,33 @@
 package dev.vaultlink.ui.toolwindow
 
+import com.intellij.execution.CommonJavaRunConfigurationParameters
+import com.intellij.execution.RunManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.ui.dsl.builder.Row
+import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBUI
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultSecretData
 import dev.vaultlink.core.vault.model.VaultSecretMetadata
+import dev.vaultlink.services.EnvApplyStrategy
 import dev.vaultlink.services.SecretApplicationCoordinator
 import dev.vaultlink.services.VaultApplicationSettingsService
 import dev.vaultlink.services.VaultProjectService
+import dev.vaultlink.services.VaultProjectSettingsService
 import dev.vaultlink.ui.common.LoginNotifier
 import dev.vaultlink.ui.common.SecretVariablesPanel
 import dev.vaultlink.ui.common.VaultSessionStatusPanel
 import java.awt.BorderLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
+
+/** null [configName] represents "apply to every compatible Run Configuration". */
+private data class RunConfigEntry(val displayName: String, val configName: String?) {
+    override fun toString(): String = displayName
+}
 
 /** Shows the mount/secret detected from the project name, the current session, and lets you trigger the fetch. */
 class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()) {
@@ -28,6 +39,16 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     init {
         val service = project.getService(VaultProjectService::class.java)
         val secretPath = service.resolveSecretPath()
+        val projectSettings = VaultProjectSettingsService.getInstance(project).state
+
+        val runConfigEntries = listOf(RunConfigEntry("All Run Configurations", null)) +
+            RunManager.getInstance(project).allSettings
+                .filter { it.configuration is CommonJavaRunConfigurationParameters }
+                .map { RunConfigEntry("${it.type.displayName} → ${it.name}", it.name) }
+        val showRunConfigTarget =
+            VaultApplicationSettingsService.getInstance().state.envApplyStrategy != EnvApplyStrategy.DOTENV_ONLY
+
+        lateinit var runConfigGroupRow: Row
 
         val content = panel {
             row {
@@ -57,12 +78,22 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                 }.rowComment("Authenticates (if needed) and applies the secret according to the strategy configured in Settings.")
             }
 
+            runConfigGroupRow = group("Run Config Target") {
+                row("Applies to:") {
+                    comboBox(runConfigEntries).bindItem(
+                        { runConfigEntries.find { it.configName == projectSettings.targetRunConfigurationName } ?: runConfigEntries.first() },
+                        { selected -> projectSettings.targetRunConfigurationName = selected?.configName },
+                    )
+                }.rowComment("Only relevant for AUTO/RUN_CONFIG_ONLY — filters which Run Configuration receives the live env var injection.")
+            }
+
             group("Variables") {
                 row {
                     cell(variablesPanel)
                 }.rowComment("Values are masked by default — click the eye button to reveal/hide them.")
             }
         }
+        runConfigGroupRow.visible(showRunConfigTarget)
         content.border = JBUI.Borders.empty(12)
         add(content, BorderLayout.CENTER)
     }
