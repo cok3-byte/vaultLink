@@ -1,9 +1,15 @@
 package dev.vaultlink.ui.common
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.ui.components.JBLabel
 import dev.vaultlink.core.vault.model.VaultSecretData
 import java.awt.BorderLayout
+import java.awt.Font
+import java.awt.datatransfer.StringSelection
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -51,10 +57,27 @@ class SecretVariablesPanel : JPanel(BorderLayout(4, 4)) {
             rowsPanel.add(JLabel("No variables fetched yet."))
         } else {
             for ((key, value) in data) {
-                rowsPanel.add(JLabel("$key = ${if (revealed) value else MASK}"))
+                rowsPanel.add(variableRow(key, value))
             }
         }
         rowsPanel.revalidate()
         rowsPanel.repaint()
+    }
+
+    private fun variableRow(key: String, value: String): JComponent {
+        val keyLabel = JBLabel(key).apply { font = font.deriveFont(Font.BOLD) }
+        val valueLabel = JBLabel(if (revealed) value else MASK).apply { font = Font(Font.MONOSPACED, Font.PLAIN, font.size) }
+        val copyButton = JButton(AllIcons.Actions.Copy).apply {
+            toolTipText = "Copy value"
+            isBorderPainted = false
+            isContentAreaFilled = false
+            isFocusPainted = false
+            addActionListener { CopyPasteManager.getInstance().setContents(StringSelection(value)) }
+        }
+        return JPanel(BorderLayout(6, 0)).apply {
+            add(keyLabel, BorderLayout.WEST)
+            add(valueLabel, BorderLayout.CENTER)
+            add(copyButton, BorderLayout.EAST)
+        }
     }
 }

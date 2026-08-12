@@ -101,21 +101,29 @@ class VaultProjectService(private val project: Project) {
 
     fun pinnedVersion(): Int? = projectSettings.pinnedSecretVersion
 
+    /** Forces a fresh login (even if a session is already cached) and stores it, for an explicit "Login" action. */
+    fun login(): AuthResult {
+        val httpClient = HttpClient.newBuilder()
+            .sslContext(CustomTlsSocketFactory.buildSslContext(settings.customCaCertPath))
+            .build()
+        return authenticateAndStore(httpClient)
+    }
+
+    /** Clears the session and any secrets cached under it, for an explicit "Logout" action. */
+    fun logout() {
+        lifecycleManager?.stop()
+        lifecycleManager = null
+        VaultCredentialsStore.clear()
+        VaultSessionStatus.clear()
+        cache.invalidateAll()
+    }
+
     private fun buildVaultClient(): VaultClient {
         val httpClient = HttpClient.newBuilder()
             .sslContext(CustomTlsSocketFactory.buildSslContext(settings.customCaCertPath))
             .build()
 
-        var clientToken = VaultCredentialsStore.read()
-        if (clientToken == null) {
-            val strategy = buildAuthStrategy(httpClient)
-            val auth = strategy.authenticate()
-            VaultCredentialsStore.store(auth.clientToken)
-            VaultSessionStatus.update(settings.authMethod, auth)
-            startLifecycle(strategy, auth)
-            clientToken = auth.clientToken
-        }
-        val resolvedToken = clientToken
+        val resolvedToken = VaultCredentialsStore.read() ?: authenticateAndStore(httpClient).clientToken
 
         return VaultClientImpl(
             vaultUrl = settings.vaultUrl,
@@ -124,6 +132,15 @@ class VaultProjectService(private val project: Project) {
             retryPolicy = RetryPolicy(),
             tokenProvider = { resolvedToken },
         )
+    }
+
+    private fun authenticateAndStore(httpClient: HttpClient): AuthResult {
+        val strategy = buildAuthStrategy(httpClient)
+        val auth = strategy.authenticate()
+        VaultCredentialsStore.store(auth.clientToken)
+        VaultSessionStatus.update(settings.authMethod, auth)
+        startLifecycle(strategy, auth)
+        return auth
     }
 
     private fun buildAuthStrategy(httpClient: HttpClient): VaultAuthStrategy = AuthStrategyFactory.create(
