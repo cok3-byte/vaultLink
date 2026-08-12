@@ -12,17 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check tag is on main
+        id: check
+        run: |
+          git fetch origin main
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "on_main=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "on_main=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag $GITHUB_REF_NAME does not point to a commit on main; skipping release."
+          fi
 
       - uses: actions/setup-java@v4
+        if: steps.check.outputs.on_main == 'true'
         with:
           distribution: temurin
           java-version: "21"
 
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.check.outputs.on_main == 'true'
 
       - run: ./gradlew buildPlugin verifyPlugin
+        if: steps.check.outputs.on_main == 'true'
 
       - name: Extract changelog section
+        if: steps.check.outputs.on_main == 'true'
         run: |
           awk -v ver="${GITHUB_REF_NAME}" '
             $0 ~ "^## \\[" ver "\\]" {flag=1; next}
@@ -31,6 +48,7 @@ jobs:
           ' CHANGELOG.md > release_notes.md
 
       - uses: softprops/action-gh-release@v2
+        if: steps.check.outputs.on_main == 'true'
         with:
           files: build/distributions/*.zip
           body_path: release_notes.md
