@@ -15,6 +15,7 @@ import dev.vaultlink.core.vault.SecretPathResolver
 import dev.vaultlink.core.vault.VaultClient
 import dev.vaultlink.core.vault.VaultClientImpl
 import dev.vaultlink.core.vault.model.SecretPath
+import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.core.vault.model.VaultSecretData
 import dev.vaultlink.core.vault.model.VaultSecretMetadata
 import java.net.http.HttpClient
@@ -37,7 +38,38 @@ class VaultProjectService(private val project: Project) {
     private val cache by lazy { InMemorySecretCache(settings.cacheTtlMinutes) }
     private var lifecycleManager: TokenLifecycleManager? = null
 
-    fun resolveSecretPath(): SecretPath? = SecretPathResolver.resolve(project.name)
+    /**
+     * MANUAL mode uses the mount/secret picked via [MountSecretPickerDialog] (stored in
+     * [VaultProjectSettingsState]); AUTO mode (default) parses `<mount>.<secret>` from the
+     * project name, same as before.
+     */
+    fun resolveSecretPath(): SecretPath? {
+        val ps = projectSettings
+        return if (ps.resolutionMode == SecretResolutionMode.MANUAL) {
+            val mount = ps.manualMount
+            val secret = ps.manualSecretName
+            if (!mount.isNullOrBlank() && !secret.isNullOrBlank()) SecretPath(mount, secret) else null
+        } else {
+            SecretPathResolver.resolve(project.name)
+        }
+    }
+
+    /** Lists KV v2 mounts available on the configured Vault server, for the manual picker. */
+    fun listMounts(): List<VaultMount> = buildVaultClient().listMounts()
+
+    /** Direct children of [path] within [mount] ("" = mount root), for the manual picker. */
+    fun listSecrets(mount: String, path: String = ""): List<String> = buildVaultClient().listSecrets(mount, path)
+
+    fun setResolutionMode(mode: SecretResolutionMode) {
+        projectSettings.resolutionMode = mode
+    }
+
+    /** Persists a manual mount/secret selection and switches [resolveSecretPath] to MANUAL mode. */
+    fun setManualSelection(mount: String, secretName: String) {
+        projectSettings.resolutionMode = SecretResolutionMode.MANUAL
+        projectSettings.manualMount = mount
+        projectSettings.manualSecretName = secretName
+    }
 
     /**
      * [version] explicitly overrides for this one call; otherwise falls back to the project's

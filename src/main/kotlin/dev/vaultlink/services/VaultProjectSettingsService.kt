@@ -8,10 +8,13 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
 
+enum class SecretResolutionMode { AUTO, MANUAL }
+
 class VaultProjectSettingsState {
     var pinnedSecretVersion: Int? = null // null = always "latest"
-    var lastResolvedMount: String? = null
-    var lastResolvedSecretPath: String? = null
+    var resolutionMode: SecretResolutionMode = SecretResolutionMode.AUTO
+    var manualMount: String? = null // only used when resolutionMode == MANUAL
+    var manualSecretName: String? = null // only used when resolutionMode == MANUAL
     var envApplyStrategyOverride: EnvApplyStrategy? = null
     var targetRunConfigurationName: String? = null // null = apply to every compatible Run Configuration
 }

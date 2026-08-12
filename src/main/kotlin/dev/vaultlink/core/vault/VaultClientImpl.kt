@@ -2,6 +2,7 @@ package dev.vaultlink.core.vault
 
 import dev.vaultlink.core.net.RetryPolicy
 import dev.vaultlink.core.vault.exception.VaultException
+import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.core.vault.model.VaultSecretData
 import dev.vaultlink.core.vault.model.VaultSecretMetadata
 import dev.vaultlink.core.vault.model.VaultSecretVersion
@@ -10,6 +11,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.URI
@@ -60,6 +62,21 @@ class VaultClientImpl(
         false
     }
 
+    override fun listMounts(): List<VaultMount> {
+        val data = json.parseToJsonElement(request("/v1/sys/mounts")).jsonObject["data"]!!.jsonObject
+        return data.entries.mapNotNull { (mountPath, mountInfo) ->
+            val info = mountInfo.jsonObject
+            val type = info["type"]?.jsonPrimitive?.contentOrNull
+            val kvVersion = info["options"]?.jsonObject?.get("version")?.jsonPrimitive?.contentOrNull
+            if (type == "kv" && kvVersion == "2") VaultMount(mountPath.removeSuffix("/")) else null
+        }
+    }
+
+    override fun listSecrets(mount: String, path: String): List<String> {
+        val data = json.parseToJsonElement(list("/v1/$mount/metadata/$path")).jsonObject["data"]!!.jsonObject
+        return data["keys"]!!.jsonArray.map { it.jsonPrimitive.content }
+    }
+
     private fun JsonObject.toVersion(explicitVersion: Int? = null) = VaultSecretVersion(
         version = explicitVersion ?: this["version"]?.jsonPrimitive?.intOrNull ?: 0,
         createdTime = this["created_time"]?.jsonPrimitive?.contentOrNull ?: "",
@@ -67,18 +84,31 @@ class VaultClientImpl(
         destroyed = this["destroyed"]?.jsonPrimitive?.booleanOrNull ?: false,
     )
 
-    private fun request(path: String): String = retryPolicy.execute {
+    private fun requestBuilder(path: String): HttpRequest.Builder {
         val builder = HttpRequest.newBuilder()
             .uri(URI.create("$vaultUrl$path"))
             .header("X-Vault-Token", tokenProvider())
             .timeout(Duration.ofSeconds(30))
         namespace?.let { builder.header("X-Vault-Namespace", it) }
-        val response = httpClient.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString())
-        when (response.statusCode()) {
+        return builder
+    }
+
+    private fun send(path: String, request: HttpRequest): String {
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        return when (response.statusCode()) {
             in 200..299 -> response.body()
             401, 403 -> throw VaultException.PermissionDenied("Vault denied the request (${response.statusCode()})")
             404 -> throw VaultException.NotFound("Secret not found at $path")
             else -> throw VaultException.Network("Vault returned ${response.statusCode()} for $path")
         }
+    }
+
+    private fun request(path: String): String = retryPolicy.execute {
+        send(path, requestBuilder(path).GET().build())
+    }
+
+    /** Vault's LIST verb, used for browsing mounts/secrets (`LIST /v1/$mount/metadata/$path`). */
+    private fun list(path: String): String = retryPolicy.execute {
+        send(path, requestBuilder(path).method("LIST", HttpRequest.BodyPublishers.noBody()).build())
     }
 }
