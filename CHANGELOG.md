@@ -8,6 +8,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-16
+
+### Added
+
+- Tool Window: title-bar actions (Fetch secret, Choose version, Login/Logout, Settings) that stay
+  reachable while the panel is scrolled.
+- Tool Window: a "copy all" action next to the existing reveal toggle in the variables list.
+- Settings: new **Advanced** group exposing the connect/read timeout, cache TTL, and OIDC
+  callback path fields, previously persisted but not reachable from any UI.
+- Settings: inline validation on Vault URL (required, must start with `http://`/`https://`) and
+  Namespace (no spaces); Callback port is now constrained to 1–65535.
+
+### Changed
+
+- Tool Window: reordered around the redesigned hierarchy — session and resolved secret lead in a
+  header card, Fetch secret is the primary action right below it, Variables comes next, and
+  Mode/Browse/Run Config Target move into a collapsed **Advanced** section.
+- Tool Window: the resolved secret now displays as `mount.secret` instead of `mount=X, secret=Y`.
+- Variables panel: the reveal toggle uses a standard icon instead of an emoji.
+- Settings: "Vault Server" group renamed to **Connection**; selecting Token no longer leaves
+  Authentication empty (it now explains where the token is entered); OIDC and Userpass are marked
+  not implemented yet.
+- Mount and secret-version picker dialogs: the selected row is now visibly highlighted.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added
@@ -50,6 +74,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/cok3-byte/vaultLink/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/cok3-byte/vaultLink/releases/tag/1.0.0
