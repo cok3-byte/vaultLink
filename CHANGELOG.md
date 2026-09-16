@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-16
+
+### Fixed
+
+- Mount and secret-version picker dialogs: replaced the now-deprecated
+  `SimpleListCellRenderer.create(...)` factory (scheduled for removal in a future IntelliJ Platform
+  release) with a direct `SimpleListCellRenderer` subclass — same rendering, no deprecated API.
+
 ## [1.2.0] - 2026-09-16
 
 ### Added
@@ -74,7 +82,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.2.1...HEAD
+[1.2.1]: https://github.com/cok3-byte/vaultLink/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/cok3-byte/vaultLink/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/cok3-byte/vaultLink/releases/tag/1.0.0
