@@ -10,5 +10,6 @@ class VaultToolWindowFactory : ToolWindowFactory {
         val panel = VaultToolWindowPanel(project)
         val content = ContentFactory.getInstance().createContent(panel, "", false)
         toolWindow.contentManager.addContent(content)
+        toolWindow.setTitleActions(panel.createTitleActions())
     }
 }

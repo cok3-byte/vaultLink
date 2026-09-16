@@ -41,6 +41,11 @@ class VaultSettingsConfigurable : Configurable {
     private var callbackPort = 8250
     private var customCaCertPath = ""
     private var envApplyStrategy = EnvApplyStrategy.AUTO
+    // Advanced — persisted since day one but unreachable from any Settings UI until now.
+    private var connectTimeoutMs = 10_000
+    private var readTimeoutMs = 10_000
+    private var cacheTtlMinutes = 15
+    private var callbackPath = "/oidc/callback"
 
     private var panel: DialogPanel? = null
     private var statusPanel: VaultSessionStatusPanel? = null
@@ -53,15 +58,21 @@ class VaultSettingsConfigurable : Configurable {
         lateinit var oidcMountRow: Row
         lateinit var oidcRoleRow: Row
         lateinit var callbackPortRow: Row
+        lateinit var oidcNoteRow: Row
         lateinit var ldapMountRow: Row
         lateinit var userpassMountRow: Row
+        lateinit var userpassNoteRow: Row
+        lateinit var tokenNoteRow: Row
 
         fun updateFieldVisibility(method: AuthMethod) {
             oidcMountRow.visible(method == AuthMethod.OIDC)
             oidcRoleRow.visible(method == AuthMethod.OIDC)
             callbackPortRow.visible(method == AuthMethod.OIDC)
+            oidcNoteRow.visible(method == AuthMethod.OIDC)
             ldapMountRow.visible(method == AuthMethod.LDAP)
             userpassMountRow.visible(method == AuthMethod.USERPASS)
+            userpassNoteRow.visible(method == AuthMethod.USERPASS)
+            tokenNoteRow.visible(method == AuthMethod.TOKEN)
         }
 
         val statusComponent = VaultSessionStatusPanel()
@@ -73,9 +84,22 @@ class VaultSettingsConfigurable : Configurable {
             }
             separator()
 
-            group("Vault Server") {
-                row("Vault URL:") { textField().bindText(::vaultUrl) }
-                row("Namespace:") { textField().bindText(::namespace) }
+            group("Connection") {
+                row("Vault URL:") {
+                    textField().bindText(::vaultUrl).validationOnInput {
+                        when {
+                            it.text.isBlank() -> error("Vault URL is required.")
+                            !it.text.startsWith("http://") && !it.text.startsWith("https://") ->
+                                error("Vault URL must start with http:// or https://.")
+                            else -> null
+                        }
+                    }
+                }
+                row("Namespace:") {
+                    textField().bindText(::namespace).validationOnInput {
+                        if (it.text.any { c -> c.isWhitespace() }) error("Namespace cannot contain spaces.") else null
+                    }
+                }
                 row("Custom CA (PEM/JKS):") {
                     textFieldWithBrowseButton().bindText(::customCaCertPath)
                 }.rowComment("Optional — only if Vault uses an internal CA not recognized by the system.")
@@ -94,9 +118,18 @@ class VaultSettingsConfigurable : Configurable {
                 }
                 oidcMountRow = row("OIDC mount:") { textField().bindText(::oidcMountPath) }
                 oidcRoleRow = row("OIDC role:") { textField().bindText(::oidcRole) }
-                callbackPortRow = row("Callback port (OIDC):") { intTextField().bindIntText(::callbackPort) }
+                callbackPortRow = row("Callback port (OIDC):") { intTextField(1..65535).bindIntText(::callbackPort) }
+                oidcNoteRow = row {
+                    comment("Not implemented yet — OIDC login is planned but the plugin currently authenticates via LDAP or Token.")
+                }
                 ldapMountRow = row("LDAP mount:") { textField().bindText(::ldapMountPath) }
                 userpassMountRow = row("Userpass mount:") { textField().bindText(::userpassMountPath) }
+                userpassNoteRow = row {
+                    comment("Not implemented yet — Userpass login is planned but the plugin currently authenticates via LDAP or Token.")
+                }
+                tokenNoteRow = row {
+                    comment("Token authentication asks for the token at login time — there is nothing to configure here.")
+                }
                 row {
                     button("Test login") { testLogin() }
                 }.rowComment("Emulates login with the values from this form (no need to Apply first).")
@@ -111,6 +144,14 @@ class VaultSettingsConfigurable : Configurable {
                         "RUN_CONFIG_ONLY: only JVM Run/Debug (Node/Python/Docker get nothing). " +
                         "DOTENV_ONLY: always .env.",
                 )
+            }
+
+            collapsibleGroup("Advanced") {
+                row("Connect timeout (ms):") { intTextField(1000..120_000).bindIntText(::connectTimeoutMs) }
+                row("Read timeout (ms):") { intTextField(1000..120_000).bindIntText(::readTimeoutMs) }
+                row("Cache TTL (minutes):") { intTextField(0..1440).bindIntText(::cacheTtlMinutes) }
+                row("Callback path (OIDC):") { textField().bindText(::callbackPath) }
+                    .rowComment("Auto-derived default — rarely needs changing; only the callback port above is user-facing.")
             }
         }
         dialogPanel.border = JBUI.Borders.empty(12)
@@ -134,6 +175,10 @@ class VaultSettingsConfigurable : Configurable {
         settings.callbackPort = callbackPort
         settings.customCaCertPath = customCaCertPath.ifBlank { null }
         settings.envApplyStrategy = envApplyStrategy
+        settings.connectTimeoutMs = connectTimeoutMs
+        settings.readTimeoutMs = readTimeoutMs
+        settings.cacheTtlMinutes = cacheTtlMinutes.toLong()
+        settings.callbackPath = callbackPath
     }
 
     override fun reset() {
@@ -153,6 +198,10 @@ class VaultSettingsConfigurable : Configurable {
         callbackPort = settings.callbackPort
         customCaCertPath = settings.customCaCertPath.orEmpty()
         envApplyStrategy = settings.envApplyStrategy
+        connectTimeoutMs = settings.connectTimeoutMs
+        readTimeoutMs = settings.readTimeoutMs
+        cacheTtlMinutes = settings.cacheTtlMinutes.toInt()
+        callbackPath = settings.callbackPath
     }
 
     /** Emulates a Vault login with the current form values (no need to Apply first). */
@@ -167,7 +216,7 @@ class VaultSettingsConfigurable : Configurable {
         val currentOidcMountPath = oidcMountPath
         val currentOidcRole = oidcRole
         val currentCallbackPort = callbackPort
-        val currentCallbackPath = settings.callbackPath
+        val currentCallbackPath = callbackPath
         val currentLdapMountPath = ldapMountPath
         val currentUserpassMountPath = userpassMountPath
         val currentCaCertPath = customCaCertPath.ifBlank { null }
