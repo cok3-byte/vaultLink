@@ -1,9 +1,11 @@
 package dev.vaultlink.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.ui.SimpleListCellRenderer
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.services.VaultProjectService
@@ -18,7 +20,6 @@ import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JScrollPane
-import javax.swing.ListCellRenderer
 import javax.swing.ListSelectionModel
 
 private sealed class Entry {
@@ -47,7 +48,10 @@ class MountSecretPickerDialog private constructor(
     private val listModel = DefaultListModel<Entry>()
     private val list = JList(listModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
-        cellRenderer = ListCellRenderer { _, value, _, _, _ -> JLabel(describe(value)) }
+        cellRenderer = SimpleListCellRenderer.create { label, value, _ ->
+            label.text = describe(value)
+            label.icon = iconFor(value)
+        }
     }
     private val upButton = JButton("Up")
 
@@ -93,6 +97,12 @@ class MountSecretPickerDialog private constructor(
         is Entry.Mount -> "${entry.mount.path}/"
         is Entry.Folder -> entry.key
         is Entry.Secret -> entry.key
+    }
+
+    private fun iconFor(entry: Entry) = when (entry) {
+        is Entry.Mount -> AllIcons.Nodes.PpLibFolder
+        is Entry.Folder -> AllIcons.Nodes.Folder
+        is Entry.Secret -> AllIcons.Nodes.Module
     }
 
     private fun openSelected() {

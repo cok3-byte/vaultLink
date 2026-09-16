@@ -1,13 +1,13 @@
 package dev.vaultlink.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.SimpleListCellRenderer
 import dev.vaultlink.core.vault.model.VaultSecretVersion
 import javax.swing.DefaultListModel
 import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JScrollPane
-import javax.swing.ListCellRenderer
 
 sealed class VersionChoice {
     object Latest : VersionChoice()
@@ -27,7 +27,10 @@ class SecretVersionPickerDialog(
         versions.sortedByDescending { it.version }.forEach(::addElement)
     }
     private val list = JList(listModel).apply {
-        cellRenderer = ListCellRenderer { _, value, _, _, _ -> JLabel(describe(value)) }
+        cellRenderer = SimpleListCellRenderer.create { label, value, _ ->
+            label.text = describe(value)
+            label.icon = if (value is LatestEntry) AllIcons.Actions.Checked else AllIcons.Vcs.History
+        }
         selectedIndex = 0
     }
 
