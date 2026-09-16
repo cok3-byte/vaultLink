@@ -48,9 +48,11 @@ class MountSecretPickerDialog private constructor(
     private val listModel = DefaultListModel<Entry>()
     private val list = JList(listModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
-        cellRenderer = SimpleListCellRenderer.create { label, value, _ ->
-            label.text = describe(value)
-            label.icon = iconFor(value)
+        cellRenderer = object : SimpleListCellRenderer<Entry>() {
+            override fun customize(list: JList<out Entry>, value: Entry, index: Int, selected: Boolean, hasFocus: Boolean) {
+                text = describe(value)
+                icon = iconFor(value)
+            }
         }
     }
     private val upButton = JButton("Up")

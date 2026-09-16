@@ -27,9 +27,11 @@ class SecretVersionPickerDialog(
         versions.sortedByDescending { it.version }.forEach(::addElement)
     }
     private val list = JList(listModel).apply {
-        cellRenderer = SimpleListCellRenderer.create { label, value, _ ->
-            label.text = describe(value)
-            label.icon = if (value is LatestEntry) AllIcons.Actions.Checked else AllIcons.Vcs.History
+        cellRenderer = object : SimpleListCellRenderer<Any>() {
+            override fun customize(list: JList<out Any>, value: Any, index: Int, selected: Boolean, hasFocus: Boolean) {
+                text = describe(value)
+                icon = if (value is LatestEntry) AllIcons.Actions.Checked else AllIcons.Vcs.History
+            }
         }
         selectedIndex = 0
     }
