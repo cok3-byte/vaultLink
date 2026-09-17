@@ -2,6 +2,7 @@
 kotlin = "2.0.21"
 intellijPlatform = "2.2.1"
 kotlinxSerialization = "1.7.3"
+changelog = "2.5.0"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
@@ -10,3 +11,4 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 intellij-platform = { id = "org.jetbrains.intellij.platform", version.ref = "intellijPlatform" }
+changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
