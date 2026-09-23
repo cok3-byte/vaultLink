@@ -146,6 +146,16 @@ class VaultProjectService(private val project: Project) {
         overridesService.discardValues()
     }
 
+    /**
+     * Empties every in-memory store this service owns — the secret cache and every secret's
+     * overrides (both disabled keys and edited values) — without touching the session or any
+     * `.env` already written to disk. For the explicit "Clear memory" action.
+     */
+    fun clearMemory() {
+        cache.invalidateAll()
+        overridesService.clearAll()
+    }
+
     private fun buildVaultClient(): VaultClient {
         val httpClient = HttpClient.newBuilder()
             .sslContext(CustomTlsSocketFactory.buildSslContext(settings.customCaCertPath))

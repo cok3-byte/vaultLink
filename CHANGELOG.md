@@ -20,6 +20,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
   global "Environment Variables" strategy from Settings → Tools → VaultLink. A new `Both` strategy
   applies the secret to both the live Run Config injection and the `.env` file, matching what the
   README already described.
+- Tool Window: a **Clear Memory** title-bar action that empties the in-memory secret cache and every
+  variable override (disabled keys and edited values), after confirmation — without closing the
+  Vault session or touching any `.env` already written to disk.
 
 ### Fixed
 

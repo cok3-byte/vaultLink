@@ -36,7 +36,8 @@ either injected live into your Run/Debug Configuration, written to a `.env` file
   until you choose to reveal them.
 - **Per-variable overrides**: disable a key to exclude it from injection, or edit its value to
   inject something other than what Vault returned — without touching the secret in Vault. Applies
-  immediately; both live only in memory and reset when the IDE closes.
+  immediately; both live only in memory and reset when the IDE closes. A **Clear Memory** title-bar
+  action empties the secret cache and every override on demand, without closing the session.
 - **Session indicator** showing whether you're currently authenticated, visible in both Settings
   and the Tool Window.
 - **Enterprise-oriented hardening**: credentials and session tokens live in memory only (never on

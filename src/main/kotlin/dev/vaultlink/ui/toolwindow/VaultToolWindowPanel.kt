@@ -8,6 +8,7 @@ import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -157,7 +158,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         refreshAll()
     }
 
-    /** Title-bar quick actions — Fetch secret, Choose version, Login/Logout, Settings — mirroring the in-body triggers. */
+    /** Title-bar quick actions — Fetch secret, Choose version, Login/Logout, Settings, Clear memory — mirroring the in-body triggers. */
     fun createTitleActions(): List<AnAction> = listOf(
         FetchSecretTitleAction({ service.resolveSecretPath() != null }) { fetchSecret(service.resolveSecretPath()) },
         ChooseVersionTitleAction({ service.resolveSecretPath() != null }) { chooseVersion(service.resolveSecretPath()) },
@@ -169,6 +170,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         OpenVaultSettingsTitleAction {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, VaultSettingsConfigurable::class.java)
         },
+        ClearMemoryTitleAction { clearMemory() },
     )
 
     private fun login() {
@@ -193,6 +195,27 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         variablesPanel.setSecret(null)
         refreshAll()
         LoginNotifier.notifySuccess(project, "Vault: logged out", "Session cleared")
+    }
+
+    /** Empties the secret cache and every secret's overrides, after confirming — the session and any `.env` on disk are untouched. */
+    private fun clearMemory() {
+        val confirmed = Messages.showYesNoDialog(
+            project,
+            "This discards the secret cache and every disabled-key/edited-value adjustment you've made " +
+                "in this project. The current Vault session stays active, and any .env already written " +
+                "to disk is left as-is. This can't be undone.",
+            "Clear VaultLink Memory?",
+            "Clear Memory",
+            "Cancel",
+            AllIcons.General.WarningDialog,
+        )
+        if (confirmed != Messages.YES) return
+
+        service.clearMemory()
+        lastSecret = null
+        variablesPanel.setSecret(null)
+        refreshAll()
+        LoginNotifier.notifySuccess(project, "VaultLink: memory cleared", "Secret cache and overrides discarded")
     }
 
     /** The user disabled/enabled a key or edited/reverted a value: persist it and re-apply without a refetch. */
