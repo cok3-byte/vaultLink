@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-22
+
 ### Added
 
 - Tool Window: each variable row can now be disabled (excluded from injection, reversibly — the row
@@ -106,7 +108,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.2.1...HEAD
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/cok3-byte/vaultLink/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/cok3-byte/vaultLink/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/cok3-byte/vaultLink/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/cok3-byte/vaultLink/compare/1.0.0...1.1.0
