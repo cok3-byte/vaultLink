@@ -13,9 +13,11 @@ import dev.vaultlink.core.credentials.VaultCredentialsStore
 import dev.vaultlink.core.credentials.VaultSessionStatus
 import dev.vaultlink.core.net.CustomTlsSocketFactory
 import dev.vaultlink.core.net.RetryPolicy
+import dev.vaultlink.core.vault.EffectiveSecret
 import dev.vaultlink.core.vault.SecretPathResolver
 import dev.vaultlink.core.vault.VaultClient
 import dev.vaultlink.core.vault.VaultClientImpl
+import dev.vaultlink.core.vault.model.SecretOverrides
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.core.vault.model.VaultSecretData
@@ -37,6 +39,7 @@ class VaultProjectService(private val project: Project) {
 
     private val settings get() = VaultApplicationSettingsService.getInstance().state
     private val projectSettings get() = VaultProjectSettingsService.getInstance(project).state
+    private val overridesService get() = SecretOverridesService.getInstance(project)
     private val cache by lazy { InMemorySecretCache(settings.cacheTtlMinutes) }
     private var lifecycleManager: TokenLifecycleManager? = null
 
@@ -96,6 +99,17 @@ class VaultProjectService(private val project: Project) {
         return client.readMetadata(secretPath.mount, secretPath.secretName)
     }
 
+    /** The user's disabled-keys/edited-values adjustments for [secretPath], empty if none were made. */
+    fun overridesFor(secretPath: SecretPath): SecretOverrides = overridesService.get(secretPath)
+
+    fun setOverrides(secretPath: SecretPath, overrides: SecretOverrides) {
+        overridesService.set(secretPath, overrides)
+    }
+
+    /** What actually gets injected: [fetchSecret]'s raw data with [overridesFor] applied on top. */
+    fun effectiveSecretData(secretPath: SecretPath, version: Int? = null): Map<String, String> =
+        EffectiveSecret.effective(fetchSecret(secretPath, version).data, overridesFor(secretPath))
+
     /** null pins back to "latest" (the default). */
     fun setPinnedVersion(version: Int?) {
         projectSettings.pinnedSecretVersion = version
@@ -127,6 +141,9 @@ class VaultProjectService(private val project: Project) {
         VaultCredentialsStore.clear()
         VaultSessionStatus.clear()
         cache.invalidateAll()
+        // Edited values are secret material tied to this session; disabled-key exclusions are just
+        // names, so they're kept — no reason to make the user redo that on every logout.
+        overridesService.discardValues()
     }
 
     private fun buildVaultClient(): VaultClient {

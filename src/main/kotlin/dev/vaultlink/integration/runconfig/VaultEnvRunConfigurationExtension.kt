@@ -38,6 +38,6 @@ class VaultEnvRunConfigurationExtension : RunConfigurationExtension() {
 
     private fun resolveEnv(service: VaultProjectService): Map<String, String>? {
         val secretPath = service.resolveSecretPath() ?: return null
-        return runCatching { service.fetchSecret(secretPath).data }.getOrNull()
+        return runCatching { service.effectiveSecretData(secretPath) }.getOrNull()
     }
 }

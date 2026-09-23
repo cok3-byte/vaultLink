@@ -10,6 +10,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Tool Window: each variable row can now be disabled (excluded from injection, reversibly — the row
+  stays visible, greyed and struck through) or edited (overrides the value that gets injected,
+  marked with an "edited" chip and revertible to Vault's value). Changes apply immediately to
+  whichever destination is active (live Run Config injection and/or `.env`), without a refetch. The
+  secret itself is never modified in Vault, and edited values live only in memory — lost when the
+  IDE closes.
 - Tool Window: an **Apply to:** selector in the Advanced section that overrides, per project, the
   global "Environment Variables" strategy from Settings → Tools → VaultLink. A new `Both` strategy
   applies the secret to both the live Run Config injection and the `.env` file, matching what the

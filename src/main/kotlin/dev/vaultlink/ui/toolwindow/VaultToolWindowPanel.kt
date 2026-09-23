@@ -17,6 +17,7 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBUI
 import dev.vaultlink.core.auth.AuthResult
 import dev.vaultlink.core.credentials.VaultSessionStatus
+import dev.vaultlink.core.vault.model.SecretOverrides
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultSecretData
 import dev.vaultlink.core.vault.model.VaultSecretMetadata
@@ -77,17 +78,22 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     private val projectSettings get() = VaultProjectSettingsService.getInstance(project).state
 
     private val headerContainer = JPanel(BorderLayout())
-    private val variablesPanel = SecretVariablesPanel()
+    private val variablesPanel = SecretVariablesPanel(project)
     private var fetchButton: JButton? = null
     private var versionButton: JButton? = null
     private lateinit var browseRow: Row
     private lateinit var runConfigTargetRow: Row
+
+    /** The raw (un-overridden) secret behind what [variablesPanel] shows, kept so an override change can re-apply without a refetch. */
+    private var lastSecret: VaultSecretData? = null
 
     init {
         val runConfigEntries = listOf(RunConfigEntry("All Run Configurations", null)) +
             RunManager.getInstance(project).allSettings
                 .filter { it.configuration is CommonJavaRunConfigurationParameters }
                 .map { RunConfigEntry("${it.type.displayName} → ${it.name}", it.name) }
+
+        variablesPanel.onOverridesChanged = { overrides -> onOverridesChanged(overrides) }
 
         val content = panel {
             row {
@@ -183,9 +189,26 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
 
     private fun logout() {
         service.logout()
+        lastSecret = null
         variablesPanel.setSecret(null)
         refreshAll()
         LoginNotifier.notifySuccess(project, "Vault: logged out", "Session cleared")
+    }
+
+    /** The user disabled/enabled a key or edited/reverted a value: persist it and re-apply without a refetch. */
+    private fun onOverridesChanged(overrides: SecretOverrides) {
+        val secretPath = service.resolveSecretPath() ?: return
+        val secret = lastSecret ?: return
+        service.setOverrides(secretPath, overrides)
+
+        // Read on the EDT for the same reason fetchSecret does — see its comment.
+        val strategy = service.effectiveApplyStrategy()
+        val hasJvmRunConfig = service.hasJvmRunConfiguration()
+        object : Task.Backgroundable(project, "VaultLink: applying changes...", true) {
+            override fun run(indicator: ProgressIndicator) {
+                SecretApplicationCoordinator(project).apply(secret, overrides, strategy, hasJvmRunConfig)
+            }
+        }.queue()
     }
 
     /** Rebuilds the header card and refreshes every control that depends on session/secret/mode state. */
@@ -286,7 +309,8 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
             override fun run(indicator: ProgressIndicator) {
                 result = runCatching {
                     val secret = service.fetchSecret(secretPath)
-                    SecretApplicationCoordinator(project).apply(secret, strategy, hasJvmRunConfig)
+                    val overrides = service.overridesFor(secretPath)
+                    SecretApplicationCoordinator(project).apply(secret, overrides, strategy, hasJvmRunConfig)
                     secret
                 }
             }
@@ -295,8 +319,9 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
             override fun onSuccess() {
                 val secret = result?.getOrNull()
                 if (secret != null) {
+                    lastSecret = secret
                     refreshAll()
-                    variablesPanel.setSecret(secret)
+                    variablesPanel.setSecret(secret, service.overridesFor(secretPath))
                     LoginNotifier.notifySuccess(project, "Vault: secret applied", secretPath.display())
                 } else {
                     LoginNotifier.notifyError(project, result?.exceptionOrNull() ?: IllegalStateException("Unknown error"))
@@ -325,6 +350,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                     is VersionChoice.Latest -> service.setPinnedVersion(null)
                     is VersionChoice.Specific -> service.setPinnedVersion(choice.version)
                 }
+                lastSecret = null
                 variablesPanel.setSecret(null)
                 refreshAll()
                 LoginNotifier.notifySuccess(
