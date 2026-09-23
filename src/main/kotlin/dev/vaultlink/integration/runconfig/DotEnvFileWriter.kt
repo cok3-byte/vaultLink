@@ -8,10 +8,11 @@ import java.io.File
 object DotEnvFileWriter {
     private const val FILE_NAME = ".env"
 
-    fun write(projectRoot: File, secret: Map<String, String>) {
+    /** [removeKeys] takes disabled-key exclusions out of the merge — otherwise they'd linger on disk forever. */
+    fun write(projectRoot: File, secret: Map<String, String>, removeKeys: Set<String> = emptySet()) {
         val file = File(projectRoot, FILE_NAME)
         val existing = if (file.exists()) parse(file.readText()) else emptyMap()
-        val merged = existing + secret
+        val merged = (existing + secret) - removeKeys
         file.writeText(merged.entries.joinToString(System.lineSeparator()) { (k, v) -> "$k=$v" })
         // file.writeText uses java.io directly, bypassing IntelliJ's VFS — without this refresh
         // the Project view/editor can keep showing stale (or empty) cached content.

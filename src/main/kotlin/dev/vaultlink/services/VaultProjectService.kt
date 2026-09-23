@@ -1,5 +1,7 @@
 package dev.vaultlink.services
 
+import com.intellij.execution.CommonJavaRunConfigurationParameters
+import com.intellij.execution.RunManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import dev.vaultlink.core.auth.AuthResult
@@ -11,9 +13,11 @@ import dev.vaultlink.core.credentials.VaultCredentialsStore
 import dev.vaultlink.core.credentials.VaultSessionStatus
 import dev.vaultlink.core.net.CustomTlsSocketFactory
 import dev.vaultlink.core.net.RetryPolicy
+import dev.vaultlink.core.vault.EffectiveSecret
 import dev.vaultlink.core.vault.SecretPathResolver
 import dev.vaultlink.core.vault.VaultClient
 import dev.vaultlink.core.vault.VaultClientImpl
+import dev.vaultlink.core.vault.model.SecretOverrides
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.core.vault.model.VaultSecretData
@@ -35,6 +39,7 @@ class VaultProjectService(private val project: Project) {
 
     private val settings get() = VaultApplicationSettingsService.getInstance().state
     private val projectSettings get() = VaultProjectSettingsService.getInstance(project).state
+    private val overridesService get() = SecretOverridesService.getInstance(project)
     private val cache by lazy { InMemorySecretCache(settings.cacheTtlMinutes) }
     private var lifecycleManager: TokenLifecycleManager? = null
 
@@ -94,12 +99,32 @@ class VaultProjectService(private val project: Project) {
         return client.readMetadata(secretPath.mount, secretPath.secretName)
     }
 
+    /** The user's disabled-keys/edited-values adjustments for [secretPath], empty if none were made. */
+    fun overridesFor(secretPath: SecretPath): SecretOverrides = overridesService.get(secretPath)
+
+    fun setOverrides(secretPath: SecretPath, overrides: SecretOverrides) {
+        overridesService.set(secretPath, overrides)
+    }
+
+    /** What actually gets injected: [fetchSecret]'s raw data with [overridesFor] applied on top. */
+    fun effectiveSecretData(secretPath: SecretPath, version: Int? = null): Map<String, String> =
+        EffectiveSecret.effective(fetchSecret(secretPath, version).data, overridesFor(secretPath))
+
     /** null pins back to "latest" (the default). */
     fun setPinnedVersion(version: Int?) {
         projectSettings.pinnedSecretVersion = version
     }
 
     fun pinnedVersion(): Int? = projectSettings.pinnedSecretVersion
+
+    /** The project's own override wins; otherwise falls back to the global IDE setting. */
+    fun effectiveApplyStrategy(): EnvApplyStrategy =
+        projectSettings.envApplyStrategyOverride ?: settings.envApplyStrategy
+
+    /** Whether the project has at least one JVM-compatible Run Configuration, for AUTO's real decision. */
+    fun hasJvmRunConfiguration(): Boolean =
+        RunManager.getInstance(project).allSettings
+            .any { it.configuration is CommonJavaRunConfigurationParameters }
 
     /** Forces a fresh login (even if a session is already cached) and stores it, for an explicit "Login" action. */
     fun login(): AuthResult {
@@ -116,6 +141,19 @@ class VaultProjectService(private val project: Project) {
         VaultCredentialsStore.clear()
         VaultSessionStatus.clear()
         cache.invalidateAll()
+        // Edited values are secret material tied to this session; disabled-key exclusions are just
+        // names, so they're kept — no reason to make the user redo that on every logout.
+        overridesService.discardValues()
+    }
+
+    /**
+     * Empties every in-memory store this service owns — the secret cache and every secret's
+     * overrides (both disabled keys and edited values) — without touching the session or any
+     * `.env` already written to disk. For the explicit "Clear memory" action.
+     */
+    fun clearMemory() {
+        cache.invalidateAll()
+        overridesService.clearAll()
     }
 
     private fun buildVaultClient(): VaultClient {

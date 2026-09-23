@@ -34,6 +34,10 @@ either injected live into your Run/Debug Configuration, written to a `.env` file
 - **Version picker**: pin a specific KV v2 secret version, or leave it on the default (latest).
 - **Masked variables view** in the Tool Window, with a show/hide toggle — values stay hidden
   until you choose to reveal them.
+- **Per-variable overrides**: disable a key to exclude it from injection, or edit its value to
+  inject something other than what Vault returned — without touching the secret in Vault. Applies
+  immediately; both live only in memory and reset when the IDE closes. A **Clear Memory** title-bar
+  action empties the secret cache and every override on demand, without closing the session.
 - **Session indicator** showing whether you're currently authenticated, visible in both Settings
   and the Tool Window.
 - **Enterprise-oriented hardening**: credentials and session tokens live in memory only (never on
@@ -70,7 +74,8 @@ Open **Settings → Tools → VaultLink**:
    `.env` only, or always both.
 
 This configuration is global (Application-level), shared by every project open in that IDE
-installation.
+installation. The **Environment Variables** strategy can be overridden per project from the Tool
+Window's Advanced section (**Apply to:**), without touching the global setting.
 
 ## Usage
 
@@ -83,6 +88,8 @@ installation.
    configured strategy.
 4. Optionally click **Choose version...** to pin a specific version, or use the masked variables
    view's eye toggle to inspect what was fetched.
+5. Optionally uncheck a variable's row to exclude it from injection, or use its pencil icon to
+   override its value — both apply immediately, and neither touches the secret in Vault.
 
 ## Development
 

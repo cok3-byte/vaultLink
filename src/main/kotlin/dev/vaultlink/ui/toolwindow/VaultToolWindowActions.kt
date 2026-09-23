@@ -58,3 +58,11 @@ class OpenVaultSettingsTitleAction(
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
     override fun actionPerformed(e: AnActionEvent) = perform()
 }
+
+/** Always enabled — the secret cache and per-secret overrides can hold entries even while the panel looks empty. */
+class ClearMemoryTitleAction(
+    private val perform: () -> Unit,
+) : AnAction("Clear Memory", "Empty the in-memory secret cache and variable overrides (session and .env are untouched)", AllIcons.Actions.GC) {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+    override fun actionPerformed(e: AnActionEvent) = perform()
+}

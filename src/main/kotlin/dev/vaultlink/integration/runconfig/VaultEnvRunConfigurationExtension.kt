@@ -6,7 +6,6 @@ import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.configurations.RunConfigurationBase
 import com.intellij.execution.configurations.RunnerSettings
 import dev.vaultlink.services.EnvApplyStrategy
-import dev.vaultlink.services.VaultApplicationSettingsService
 import dev.vaultlink.services.VaultProjectService
 import dev.vaultlink.services.VaultProjectSettingsService
 
@@ -27,18 +26,18 @@ class VaultEnvRunConfigurationExtension : RunConfigurationExtension() {
         runnerSettings: RunnerSettings?,
     ) {
         if (configuration !is CommonJavaRunConfigurationParameters) return
-        if (VaultApplicationSettingsService.getInstance().state.envApplyStrategy == EnvApplyStrategy.DOTENV_ONLY) return
+        val service = configuration.project.getService(VaultProjectService::class.java)
+        if (service.effectiveApplyStrategy() == EnvApplyStrategy.DOTENV_ONLY) return
 
         val target = VaultProjectSettingsService.getInstance(configuration.project).state.targetRunConfigurationName
         if (target != null && target != configuration.name) return
 
-        val env = resolveEnv(configuration) ?: return
+        val env = resolveEnv(service) ?: return
         JavaEnvApplier().apply { bind(params) }.apply(env)
     }
 
-    private fun resolveEnv(configuration: RunConfigurationBase<*>): Map<String, String>? {
-        val service = configuration.project.getService(VaultProjectService::class.java)
+    private fun resolveEnv(service: VaultProjectService): Map<String, String>? {
         val secretPath = service.resolveSecretPath() ?: return null
-        return runCatching { service.fetchSecret(secretPath).data }.getOrNull()
+        return runCatching { service.effectiveSecretData(secretPath) }.getOrNull()
     }
 }
