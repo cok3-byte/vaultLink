@@ -13,6 +13,7 @@ class SecretApplicationCoordinator(private val project: Project) {
             EnvApplyStrategy.DOTENV_ONLY -> true
             EnvApplyStrategy.RUN_CONFIG_ONLY -> false
             EnvApplyStrategy.AUTO -> !hasJvmRunConfig
+            EnvApplyStrategy.BOTH -> true
         }
         if (useDotEnv) {
             val projectRoot = project.basePath?.let(::File) ?: return

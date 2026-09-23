@@ -70,7 +70,8 @@ Open **Settings → Tools → VaultLink**:
    `.env` only, or always both.
 
 This configuration is global (Application-level), shared by every project open in that IDE
-installation.
+installation. The **Environment Variables** strategy can be overridden per project from the Tool
+Window's Advanced section (**Apply to:**), without touching the global setting.
 
 ## Usage
 

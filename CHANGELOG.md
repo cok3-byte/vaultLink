@@ -8,6 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- Tool Window: an **Apply to:** selector in the Advanced section that overrides, per project, the
+  global "Environment Variables" strategy from Settings → Tools → VaultLink. A new `Both` strategy
+  applies the secret to both the live Run Config injection and the `.env` file, matching what the
+  README already described.
+
+### Fixed
+
+- Tool Window: **Auto** now really decides between live Run/Debug injection and a `.env` file based
+  on whether the project has a JVM-compatible Run Configuration — previously it always wrote `.env`
+  regardless.
+
 ## [1.2.1] - 2026-09-16
 
 ### Fixed

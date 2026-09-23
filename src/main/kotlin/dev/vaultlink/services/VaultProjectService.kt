@@ -1,5 +1,7 @@
 package dev.vaultlink.services
 
+import com.intellij.execution.CommonJavaRunConfigurationParameters
+import com.intellij.execution.RunManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import dev.vaultlink.core.auth.AuthResult
@@ -100,6 +102,15 @@ class VaultProjectService(private val project: Project) {
     }
 
     fun pinnedVersion(): Int? = projectSettings.pinnedSecretVersion
+
+    /** The project's own override wins; otherwise falls back to the global IDE setting. */
+    fun effectiveApplyStrategy(): EnvApplyStrategy =
+        projectSettings.envApplyStrategyOverride ?: settings.envApplyStrategy
+
+    /** Whether the project has at least one JVM-compatible Run Configuration, for AUTO's real decision. */
+    fun hasJvmRunConfiguration(): Boolean =
+        RunManager.getInstance(project).allSettings
+            .any { it.configuration is CommonJavaRunConfigurationParameters }
 
     /** Forces a fresh login (even if a session is already cached) and stores it, for an explicit "Login" action. */
     fun login(): AuthResult {

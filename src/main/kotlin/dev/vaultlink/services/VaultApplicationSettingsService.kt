@@ -8,7 +8,7 @@ import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
 import dev.vaultlink.core.auth.AuthMethod
 
-enum class EnvApplyStrategy { AUTO, RUN_CONFIG_ONLY, DOTENV_ONLY }
+enum class EnvApplyStrategy { AUTO, RUN_CONFIG_ONLY, DOTENV_ONLY, BOTH }
 
 class VaultSettingsState {
     var vaultUrl: String = ""

@@ -46,6 +46,19 @@ private data class RunConfigEntry(val displayName: String, val configName: Strin
     override fun toString(): String = displayName
 }
 
+/** null [strategy] means "inherit the global IDE setting" (Settings → Tools → VaultLink). */
+private data class ApplyToEntry(val displayName: String, val strategy: EnvApplyStrategy?) {
+    override fun toString(): String = displayName
+}
+
+private val APPLY_TO_ENTRIES = listOf(
+    ApplyToEntry("Inherit from Settings", null),
+    ApplyToEntry("Auto", EnvApplyStrategy.AUTO),
+    ApplyToEntry("Run Config only", EnvApplyStrategy.RUN_CONFIG_ONLY),
+    ApplyToEntry(".env only", EnvApplyStrategy.DOTENV_ONLY),
+    ApplyToEntry("Both", EnvApplyStrategy.BOTH),
+)
+
 private fun SecretPath.display(): String = "$mount.$secretName"
 
 /**
@@ -68,14 +81,13 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     private var fetchButton: JButton? = null
     private var versionButton: JButton? = null
     private lateinit var browseRow: Row
+    private lateinit var runConfigTargetRow: Row
 
     init {
         val runConfigEntries = listOf(RunConfigEntry("All Run Configurations", null)) +
             RunManager.getInstance(project).allSettings
                 .filter { it.configuration is CommonJavaRunConfigurationParameters }
                 .map { RunConfigEntry("${it.type.displayName} → ${it.name}", it.name) }
-        val showRunConfigTarget =
-            VaultApplicationSettingsService.getInstance().state.envApplyStrategy != EnvApplyStrategy.DOTENV_ONLY
 
         val content = panel {
             row {
@@ -110,14 +122,21 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                         refreshAll()
                     }
                 }.rowComment("Navigates the Vault API: pick a KV v2 mount, then drill into its secrets.")
-                if (showRunConfigTarget) {
-                    row("Applies to:") {
-                        comboBox(runConfigEntries).bindItem(
-                            { runConfigEntries.find { it.configName == projectSettings.targetRunConfigurationName } ?: runConfigEntries.first() },
-                            { selected -> projectSettings.targetRunConfigurationName = selected?.configName },
-                        )
-                    }.rowComment("Only relevant for AUTO/RUN_CONFIG_ONLY — filters which Run Configuration receives the live env var injection.")
-                }
+                row("Apply to:") {
+                    comboBox(APPLY_TO_ENTRIES).bindItem(
+                        { APPLY_TO_ENTRIES.find { it.strategy == projectSettings.envApplyStrategyOverride } ?: APPLY_TO_ENTRIES.first() },
+                        { selected ->
+                            projectSettings.envApplyStrategyOverride = selected?.strategy
+                            refreshAll()
+                        },
+                    )
+                }.rowComment("Overrides Settings → Tools → VaultLink for this project only.")
+                runConfigTargetRow = row("Applies to:") {
+                    comboBox(runConfigEntries).bindItem(
+                        { runConfigEntries.find { it.configName == projectSettings.targetRunConfigurationName } ?: runConfigEntries.first() },
+                        { selected -> projectSettings.targetRunConfigurationName = selected?.configName },
+                    )
+                }.rowComment("Only relevant for Auto/Run Config only/Both — filters which Run Configuration receives the live env var injection.")
             }
         }
         browseRow.visible(projectSettings.resolutionMode == SecretResolutionMode.MANUAL)
@@ -181,6 +200,9 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         versionButton?.isEnabled = hasSecretPath
         if (::browseRow.isInitialized) {
             browseRow.visible(projectSettings.resolutionMode == SecretResolutionMode.MANUAL)
+        }
+        if (::runConfigTargetRow.isInitialized) {
+            runConfigTargetRow.visible(service.effectiveApplyStrategy() != EnvApplyStrategy.DOTENV_ONLY)
         }
         variablesPanel.setEmptyText(emptyVariablesText())
     }
@@ -253,14 +275,18 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
 
     private fun fetchSecret(secretPath: SecretPath?) {
         if (secretPath == null) return
+        // Read on the EDT: RunManager and the strategy override are cheap here, and the decision
+        // must reflect the state at the moment the user clicked, not whatever the background
+        // thread happens to see once it gets scheduled.
+        val strategy = service.effectiveApplyStrategy()
+        val hasJvmRunConfig = service.hasJvmRunConfiguration()
         object : Task.Backgroundable(project, "VaultLink: fetching secret...", true) {
             private var result: Result<VaultSecretData>? = null
 
             override fun run(indicator: ProgressIndicator) {
                 result = runCatching {
                     val secret = service.fetchSecret(secretPath)
-                    val strategy = VaultApplicationSettingsService.getInstance().state.envApplyStrategy
-                    SecretApplicationCoordinator(project).apply(secret, strategy, hasJvmRunConfig = false)
+                    SecretApplicationCoordinator(project).apply(secret, strategy, hasJvmRunConfig)
                     secret
                 }
             }
