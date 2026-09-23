@@ -151,7 +151,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         val scrollPane = JBScrollPane(content).apply {
             border = JBUI.Borders.empty()
             verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
-            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
         }
         add(scrollPane, BorderLayout.CENTER)
         refreshAll()

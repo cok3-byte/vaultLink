@@ -26,6 +26,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Tool Window: **Auto** now really decides between live Run/Debug injection and a `.env` file based
   on whether the project has a JVM-compatible Run Configuration — previously it always wrote `.env`
   regardless.
+- Tool Window: content that doesn't fit the panel's width (a long variable name or value once
+  revealed) is no longer silently clipped — a horizontal scrollbar now appears when needed.
 
 ## [1.2.1] - 2026-09-16
 

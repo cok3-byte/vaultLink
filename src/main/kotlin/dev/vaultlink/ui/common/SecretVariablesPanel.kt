@@ -161,7 +161,9 @@ class SecretVariablesPanel(private val project: Project) : JPanel(BorderLayout(0
         }
         val keyLabel = JBLabel(key).apply {
             font = Font(Font.MONOSPACED, Font.BOLD, font.size)
-            preferredSize = Dimension(110, preferredSize.height)
+            // A minimum, not a fixed width: long keys now get to keep their full text instead of
+            // being clipped, since the panel's horizontal scrollbar can reach them.
+            minimumSize = Dimension(110, minimumSize.height)
             foreground = if (enabled) JBColor.foreground() else JBColor.GRAY
         }
         val shownText = if (revealed) effectiveValue else MASK
