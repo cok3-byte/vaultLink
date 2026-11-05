@@ -3,28 +3,27 @@ package dev.vaultlink.core.auth.ui
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.DialogWrapper
 import dev.vaultlink.core.auth.LoginException
-import java.awt.BorderLayout
+import com.intellij.ui.components.JBPasswordField
+import com.intellij.ui.dsl.builder.COLUMNS_MEDIUM
+import com.intellij.ui.dsl.builder.columns
+import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.JPasswordField
 
 /** Paste an already-issued Vault token; validated with lookup-self before accepting it (see TokenAuthStrategy). */
 class TokenLoginDialog : DialogWrapper(true) {
 
-    private val tokenField = JPasswordField()
+    private val tokenField = JBPasswordField()
 
     init {
         title = "VaultLink — Login with existing token"
         init()
     }
 
-    override fun createCenterPanel(): JComponent {
-        return JPanel(BorderLayout(8, 8)).apply {
-            add(JLabel("Vault token:"), BorderLayout.WEST)
-            add(tokenField, BorderLayout.CENTER)
-        }
+    override fun createCenterPanel(): JComponent = panel {
+        row("Vault token:") { cell(tokenField).columns(COLUMNS_MEDIUM) }
     }
+
+    override fun getPreferredFocusedComponent(): JComponent = tokenField
 
     private fun token(): String = String(tokenField.password)
 

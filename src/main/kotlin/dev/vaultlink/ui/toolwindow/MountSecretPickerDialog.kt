@@ -6,11 +6,14 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.ui.JBUI
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultMount
 import dev.vaultlink.services.VaultProjectService
+import dev.vaultlink.ui.design.VaultSpacing
 import java.awt.BorderLayout
-import java.awt.Dimension
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.DefaultListModel
@@ -19,7 +22,6 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.ListSelectionModel
 
 private sealed class Entry {
@@ -46,7 +48,7 @@ class MountSecretPickerDialog private constructor(
 
     private val breadcrumb = JLabel()
     private val listModel = DefaultListModel<Entry>()
-    private val list = JList(listModel).apply {
+    private val list = JBList(listModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         cellRenderer = object : SimpleListCellRenderer<Entry>() {
             override fun customize(list: JList<out Entry>, value: Entry, index: Int, selected: Boolean, hasFocus: Boolean) {
@@ -71,14 +73,14 @@ class MountSecretPickerDialog private constructor(
     }
 
     override fun createCenterPanel(): JComponent {
-        val panel = JPanel(BorderLayout(0, 8))
+        val panel = JPanel(BorderLayout(0, VaultSpacing.px(VaultSpacing.MD)))
         val topBar = JPanel(BorderLayout()).apply {
             add(breadcrumb, BorderLayout.CENTER)
             add(upButton, BorderLayout.EAST)
         }
         panel.add(topBar, BorderLayout.NORTH)
-        panel.add(JScrollPane(list), BorderLayout.CENTER)
-        panel.preferredSize = Dimension(480, 360)
+        panel.add(JBScrollPane(list), BorderLayout.CENTER)
+        panel.preferredSize = JBUI.size(480, 360)
         return panel
     }
 

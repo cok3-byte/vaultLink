@@ -9,8 +9,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import com.intellij.ui.JBColor
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.Row
 import com.intellij.ui.dsl.builder.bindItem
@@ -28,15 +26,18 @@ import dev.vaultlink.services.SecretResolutionMode
 import dev.vaultlink.services.VaultApplicationSettingsService
 import dev.vaultlink.services.VaultProjectService
 import dev.vaultlink.services.VaultProjectSettingsService
-import dev.vaultlink.ui.common.ChipVariant
 import dev.vaultlink.ui.common.LoginNotifier
 import dev.vaultlink.ui.common.SecretVariablesPanel
 import dev.vaultlink.ui.common.VaultSessionStatusPanel
-import dev.vaultlink.ui.common.chip
+import dev.vaultlink.ui.design.ChipVariant
+import dev.vaultlink.ui.design.VaultSpacing
+import dev.vaultlink.ui.design.chip
+import dev.vaultlink.ui.design.hFlow
+import dev.vaultlink.ui.design.monoLabel
+import dev.vaultlink.ui.design.mutedLabel
 import dev.vaultlink.ui.settings.VaultSettingsConfigurable
 import java.awt.BorderLayout
 import java.awt.FlowLayout
-import java.awt.Font
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
@@ -147,7 +148,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
             }
         }
         browseRow.visible(projectSettings.resolutionMode == SecretResolutionMode.MANUAL)
-        content.border = JBUI.Borders.empty(12)
+        content.border = JBUI.Borders.empty(VaultSpacing.LG)
 
         val scrollPane = JBScrollPane(content).apply {
             border = JBUI.Borders.empty()
@@ -256,8 +257,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     private fun buildHeaderCard(): JPanel {
         val statusPanel = VaultSessionStatusPanel()
         val secretLine = buildSecretLine()
-        val chipsRow = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
-            isOpaque = false
+        val chipsRow = hFlow(FlowLayout.LEFT, VaultSpacing.SM).apply {
             add(chip(projectSettings.resolutionMode.name))
             val secretPath = service.resolveSecretPath()
             when {
@@ -267,11 +267,11 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         }
         return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = JBUI.Borders.empty(2, 0, 8, 0)
+            border = JBUI.Borders.empty(VaultSpacing.XXS, 0, VaultSpacing.MD, 0)
             add(statusPanel)
-            add(Box.createVerticalStrut(6))
+            add(Box.createVerticalStrut(VaultSpacing.px(VaultSpacing.SM)))
             add(secretLine)
-            add(Box.createVerticalStrut(6))
+            add(Box.createVerticalStrut(VaultSpacing.px(VaultSpacing.SM)))
             add(chipsRow)
         }
     }
@@ -281,14 +281,14 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
 
     private fun buildSecretLine(): JPanel {
         val secretPath = service.resolveSecretPath()
-        val panel = JPanel(BorderLayout(8, 0)).apply { isOpaque = false }
+        val panel = JPanel(BorderLayout(VaultSpacing.px(VaultSpacing.MD), 0)).apply { isOpaque = false }
         when {
             secretPath != null -> {
-                val label = JBLabel(secretPath.display()).apply { font = Font(Font.MONOSPACED, Font.BOLD, font.size) }
+                val label = monoLabel(secretPath.display(), bold = true)
                 panel.add(label, BorderLayout.WEST)
             }
             projectSettings.resolutionMode == SecretResolutionMode.MANUAL -> {
-                val label = JBLabel("No secret selected yet — Browse the Vault mounts.").apply { foreground = JBColor.GRAY }
+                val label = mutedLabel("No secret selected yet — Browse the Vault mounts.")
                 val browse = JButton("Browse…", AllIcons.Actions.Find).apply {
                     addActionListener {
                         val picked = MountSecretPickerDialog.pick(project, service) ?: return@addActionListener
@@ -300,10 +300,10 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
                 panel.add(browse, BorderLayout.EAST)
             }
             else -> {
-                val label = JBLabel("This project name is not <mount>.<secret> — switch to Manual and browse.").apply {
-                    foreground = JBColor.GRAY
-                    icon = AllIcons.General.Warning
-                }
+                val label = mutedLabel(
+                    "This project name is not <mount>.<secret> — switch to Manual and browse.",
+                    AllIcons.General.Warning,
+                )
                 panel.add(label, BorderLayout.CENTER)
             }
         }

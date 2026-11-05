@@ -8,6 +8,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Changed
+
+- UI: introduced a shared design system (color, spacing, radius and typography tokens plus shared
+  components) so every panel and dialog looks consistent. Theme authors can now restyle VaultLink
+  through `VaultLink.*` color keys in a `*.theme.json`.
+- Session indicator: the "active" state now uses the same muted green as the rest of the IDE's
+  status colors instead of a saturated pure green that was hard to read on light themes.
+- Login (LDAP/Userpass/Token) and Edit value dialogs now use the standard IntelliJ form layout, and
+  the first field gets keyboard focus as soon as the dialog opens.
+
+### Fixed
+
+- Tool Window and the mount picker: spacing, the variable key column and the picker dialog size
+  now scale correctly on HiDPI screens and with IDE zoom, instead of rendering cramped.
+
 ## [1.3.0] - 2026-09-22
 
 ### Added

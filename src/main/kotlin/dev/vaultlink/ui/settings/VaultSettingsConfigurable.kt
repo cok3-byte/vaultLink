@@ -20,6 +20,7 @@ import dev.vaultlink.services.EnvApplyStrategy
 import dev.vaultlink.services.VaultApplicationSettingsService
 import dev.vaultlink.ui.common.LoginNotifier
 import dev.vaultlink.ui.common.VaultSessionStatusPanel
+import dev.vaultlink.ui.design.VaultSpacing
 import java.awt.event.ItemEvent
 import java.net.http.HttpClient
 import javax.swing.JComponent
@@ -154,7 +155,7 @@ class VaultSettingsConfigurable : Configurable {
                     .rowComment("Auto-derived default — rarely needs changing; only the callback port above is user-facing.")
             }
         }
-        dialogPanel.border = JBUI.Borders.empty(12)
+        dialogPanel.border = JBUI.Borders.empty(VaultSpacing.LG)
 
         updateFieldVisibility(authMethod)
         panel = dialogPanel
