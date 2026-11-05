@@ -3,11 +3,12 @@ package dev.vaultlink.ui.toolwindow
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBScrollPane
 import dev.vaultlink.core.vault.model.VaultSecretVersion
 import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.JList
-import javax.swing.JScrollPane
 
 sealed class VersionChoice {
     object Latest : VersionChoice()
@@ -26,7 +27,7 @@ class SecretVersionPickerDialog(
         addElement(LatestEntry(currentVersion))
         versions.sortedByDescending { it.version }.forEach(::addElement)
     }
-    private val list = JList(listModel).apply {
+    private val list = JBList(listModel).apply {
         cellRenderer = object : SimpleListCellRenderer<Any>() {
             override fun customize(list: JList<out Any>, value: Any, index: Int, selected: Boolean, hasFocus: Boolean) {
                 text = describe(value)
@@ -41,7 +42,7 @@ class SecretVersionPickerDialog(
         init()
     }
 
-    override fun createCenterPanel(): JComponent = JScrollPane(list)
+    override fun createCenterPanel(): JComponent = JBScrollPane(list)
 
     private fun selectedChoice(): VersionChoice? = when (val selected = list.selectedValue) {
         is LatestEntry -> VersionChoice.Latest

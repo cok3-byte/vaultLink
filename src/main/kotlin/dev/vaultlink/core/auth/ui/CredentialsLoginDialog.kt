@@ -4,34 +4,32 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.DialogWrapper
 import dev.vaultlink.core.auth.AuthMethod
 import dev.vaultlink.core.auth.LoginException
-import java.awt.GridLayout
+import com.intellij.ui.components.JBPasswordField
+import com.intellij.ui.components.JBTextField
+import com.intellij.ui.dsl.builder.COLUMNS_MEDIUM
+import com.intellij.ui.dsl.builder.columns
+import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.JPasswordField
-import javax.swing.JTextField
 
 data class LoginCredentials(val username: String, val password: String)
 
 /** Dialog shared by LDAP and Userpass. The password is never persisted, it only lives in memory. */
 class CredentialsLoginDialog(method: AuthMethod) : DialogWrapper(true) {
 
-    private val usernameField = JTextField()
-    private val passwordField = JPasswordField()
+    private val usernameField = JBTextField()
+    private val passwordField = JBPasswordField()
 
     init {
         title = "VaultLink — $method Login"
         init()
     }
 
-    override fun createCenterPanel(): JComponent {
-        return JPanel(GridLayout(2, 2, 8, 8)).apply {
-            add(JLabel("Username:"))
-            add(usernameField)
-            add(JLabel("Password:"))
-            add(passwordField)
-        }
+    override fun createCenterPanel(): JComponent = panel {
+        row("Username:") { cell(usernameField).columns(COLUMNS_MEDIUM) }
+        row("Password:") { cell(passwordField).columns(COLUMNS_MEDIUM) }
     }
+
+    override fun getPreferredFocusedComponent(): JComponent = usernameField
 
     private fun credentials(): LoginCredentials = LoginCredentials(usernameField.text, String(passwordField.password))
 

@@ -13,7 +13,9 @@
 ./gradlew verifyPlugin     # validates compatibility against the declared build range (251-262.*)
 ```
 
-Both must pass — the `Build` workflow runs them on every push/PR.
+Both must pass — the `Build` workflow runs them on every push/PR. `./gradlew build` also runs
+`checkDesignTokens`, which rejects hardcoded colors, fonts and unscaled gaps in UI code — see
+[docs/design-system.md](docs/design-system.md).
 
 If your change is user-visible, add an entry under `## [Unreleased]` in
 [CHANGELOG.md](CHANGELOG.md), following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).

@@ -70,3 +70,36 @@ intellijPlatform {
 kotlin {
     jvmToolchain(21)
 }
+
+// Design-system guard (see docs/design-system.md): UI code must read colors, fonts and spacing from
+// dev.vaultlink.ui.design instead of hardcoding them. Runs as part of `check`.
+val checkDesignTokens by tasks.registering {
+    group = "verification"
+    description = "Fails if UI code hardcodes colors, fonts or unscaled gaps instead of using design tokens."
+    val uiSources = fileTree("src/main/kotlin") {
+        include("**/ui/**/*.kt")
+        exclude("**/ui/design/**")
+    }
+    inputs.files(uiSources)
+    doLast {
+        val rules = mapOf(
+            Regex("""JBColor\(\s*0x|JBColor\.(GRAY|GREEN|RED|BLUE|YELLOW|ORANGE|BLACK|WHITE)\b|Color\(\s*0x|#[0-9A-Fa-f]{6}\b""") to
+                "hardcoded color - use VaultColors",
+            Regex("""Font\(\s*Font\.|deriveFont\(""") to "hand-built font - use VaultTypography",
+            Regex("""(FlowLayout|BorderLayout)\([^)]*\b[1-9]\d*\s*,\s*\d+\)""") to
+                "unscaled layout gap - use VaultSpacing.px(...)",
+            Regex("""(Dimension|createVerticalStrut|createHorizontalStrut)\(\s*[1-9]""") to
+                "unscaled size - use JBUI.size/JBUI.scale with a token",
+        )
+        val violations = uiSources.files.flatMap { file ->
+            file.readLines().mapIndexedNotNull { i, line ->
+                rules.entries.firstOrNull { it.key.containsMatchIn(line) }
+                    ?.let { "${file.relativeTo(projectDir)}:${i + 1}: ${it.value}\n    ${line.trim()}" }
+            }
+        }
+        if (violations.isNotEmpty()) {
+            throw GradleException("Design token violations:\n" + violations.joinToString("\n"))
+        }
+    }
+}
+tasks.named("check") { dependsOn(checkDesignTokens) }
