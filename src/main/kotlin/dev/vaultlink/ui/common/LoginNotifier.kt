@@ -16,10 +16,10 @@ import dev.vaultlink.core.auth.LoginException
 object LoginNotifier {
 
     /** "Login only" use case (Settings > Test login): success is an [AuthResult]. */
-    fun notifyResult(project: Project?, method: AuthMethod, result: Result<AuthResult>) {
+    fun notifyResult(project: Project?, profileName: String, method: AuthMethod, result: Result<AuthResult>) {
         val error = result.exceptionOrNull()
         if (error == null) {
-            notifySuccess(project, "Vault: session started", "Login successful via $method.")
+            notifySuccess(project, "Vault: session started", "Login to \"$profileName\" successful via $method.")
         } else {
             notifyError(project, error)
         }

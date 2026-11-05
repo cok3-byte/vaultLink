@@ -38,6 +38,9 @@ either injected live into your Run/Debug Configuration, written to a `.env` file
   inject something other than what Vault returned — without touching the secret in Vault. Applies
   immediately; both live only in memory and reset when the IDE closes. A **Clear Memory** title-bar
   action empties the secret cache and every override on demand, without closing the session.
+- **Multiple Vault servers**: define one profile per Vault (URL, namespace, auth method, CA) and
+  pick which one each project uses from the Tool Window; projects without a choice use the
+  default profile. Sessions are kept per profile, so a token never reaches another server.
 - **Session indicator** showing whether you're currently authenticated, visible in both Settings
   and the Tool Window.
 - **Enterprise-oriented hardening**: credentials and session tokens live in memory only (never on

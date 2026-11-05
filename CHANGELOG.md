@@ -8,8 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- Vault profiles: Settings → Tools → VaultLink can now hold several Vault servers, each with its own
+  URL, namespace, authentication method and custom CA. Profiles can be added, duplicated, deleted
+  and one can be marked as the default.
+- Tool Window: a **Vault** selector to choose which profile the current project uses. Projects
+  without a choice follow the default profile, and the header now shows the selected server's URL.
+
 ### Changed
 
+- Existing single-server settings are migrated automatically into a profile named "Default" — no
+  action needed after upgrading.
+- Settings: the OIDC callback path moved from **Advanced** into the profile's Authentication
+  section, since it now belongs to each profile.
 - UI: introduced a shared design system (color, spacing, radius and typography tokens plus shared
   components) so every panel and dialog looks consistent. Theme authors can now restyle VaultLink
   through `VaultLink.*` color keys in a `*.theme.json`.
@@ -17,6 +29,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
   status colors instead of a saturated pure green that was hard to read on light themes.
 - Login (LDAP/Userpass/Token) and Edit value dialogs now use the standard IntelliJ form layout, and
   the first field gets keyboard focus as soon as the dialog opens.
+
+### Security
+
+- Vault sessions are now kept per profile: a token issued by one Vault server is never sent to
+  another. A profile's session is also discarded when you delete it or change its URL, namespace,
+  authentication method or CA. Edited variable values and cached secrets are likewise kept apart
+  per profile.
 
 ### Fixed
 

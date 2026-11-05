@@ -15,7 +15,6 @@ import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBUI
 import dev.vaultlink.core.auth.AuthResult
-import dev.vaultlink.core.credentials.VaultSessionStatus
 import dev.vaultlink.core.vault.model.SecretOverrides
 import dev.vaultlink.core.vault.model.SecretPath
 import dev.vaultlink.core.vault.model.VaultSecretData
@@ -31,6 +30,7 @@ import dev.vaultlink.ui.common.SecretVariablesPanel
 import dev.vaultlink.ui.common.VaultSessionStatusPanel
 import dev.vaultlink.ui.design.ChipVariant
 import dev.vaultlink.ui.design.VaultSpacing
+import dev.vaultlink.ui.design.captionLabel
 import dev.vaultlink.ui.design.chip
 import dev.vaultlink.ui.design.hFlow
 import dev.vaultlink.ui.design.monoLabel
@@ -38,14 +38,21 @@ import dev.vaultlink.ui.design.mutedLabel
 import dev.vaultlink.ui.settings.VaultSettingsConfigurable
 import java.awt.BorderLayout
 import java.awt.FlowLayout
+import java.awt.event.ItemEvent
 import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.ScrollPaneConstants
 
 /** null [configName] represents "apply to every compatible Run Configuration". */
 private data class RunConfigEntry(val displayName: String, val configName: String?) {
+    override fun toString(): String = displayName
+}
+
+/** null [profileId] means "follow the default profile" (whichever is marked default in Settings). */
+private data class ProfileEntry(val displayName: String, val profileId: String?, val vaultUrl: String) {
     override fun toString(): String = displayName
 }
 
@@ -85,6 +92,10 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     private var versionButton: JButton? = null
     private lateinit var browseRow: Row
     private lateinit var runConfigTargetRow: Row
+    private val profileModel = DefaultComboBoxModel<ProfileEntry>()
+
+    /** True while [profileModel] is rebuilt programmatically, so the combo listener ignores it. */
+    private var syncingProfiles = false
 
     /** The raw (un-overridden) secret behind what [variablesPanel] shows, kept so an override change can re-apply without a refetch. */
     private var lastSecret: VaultSecretData? = null
@@ -98,6 +109,17 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         variablesPanel.onOverridesChanged = { overrides -> onOverridesChanged(overrides) }
 
         val content = panel {
+            row("Vault:") {
+                comboBox(profileModel).component.apply {
+                    toolTipText = "Vault profile this project uses — manage profiles in Settings → Tools → VaultLink."
+                    addItemListener { event ->
+                        if (!syncingProfiles && event.stateChange == ItemEvent.SELECTED) {
+                            onProfileSelected(event.item as ProfileEntry)
+                        }
+                    }
+                }
+            }
+
             row {
                 cell(headerContainer)
             }
@@ -164,12 +186,14 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
         FetchSecretTitleAction({ service.resolveSecretPath() != null }) { fetchSecret(service.resolveSecretPath()) },
         ChooseVersionTitleAction({ service.resolveSecretPath() != null }) { chooseVersion(service.resolveSecretPath()) },
         ToggleSessionTitleAction(
-            { VaultSessionStatus.isActive() },
+            { service.isSessionActive() },
             { login() },
             { logout() },
         ),
         OpenVaultSettingsTitleAction {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, VaultSettingsConfigurable::class.java)
+            // Modal: profiles may have been added, renamed or deleted meanwhile.
+            refreshAll()
         },
         ClearMemoryTitleAction { clearMemory() },
     )
@@ -184,8 +208,13 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
 
             override fun onSuccess() {
                 if (result?.isSuccess == true) refreshAll()
-                val method = VaultApplicationSettingsService.getInstance().state.authMethod
-                LoginNotifier.notifyResult(project, method, result ?: Result.failure(IllegalStateException("Unknown error")))
+                val profile = service.activeProfile()
+                LoginNotifier.notifyResult(
+                    project,
+                    profile.name,
+                    profile.authMethod,
+                    result ?: Result.failure(IllegalStateException("Unknown error")),
+                )
             }
         }.queue()
     }
@@ -237,6 +266,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
 
     /** Rebuilds the header card and refreshes every control that depends on session/secret/mode state. */
     private fun refreshAll() {
+        rebuildProfileModel()
         headerContainer.removeAll()
         headerContainer.add(buildHeaderCard(), BorderLayout.CENTER)
         headerContainer.revalidate()
@@ -255,7 +285,13 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
     }
 
     private fun buildHeaderCard(): JPanel {
-        val statusPanel = VaultSessionStatusPanel()
+        val profile = service.activeProfile()
+        val statusPanel = VaultSessionStatusPanel { service.activeProfile().id }
+        val serverLine = if (profile.vaultUrl.isBlank()) {
+            mutedLabel("Profile \"${profile.name}\" has no Vault URL — set it in Settings.", AllIcons.General.Warning)
+        } else {
+            captionLabel(profile.vaultUrl + (profile.namespace?.let { "  ·  ns: $it" } ?: ""))
+        }
         val secretLine = buildSecretLine()
         val chipsRow = hFlow(FlowLayout.LEFT, VaultSpacing.SM).apply {
             add(chip(projectSettings.resolutionMode.name))
@@ -269,6 +305,7 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(VaultSpacing.XXS, 0, VaultSpacing.MD, 0)
             add(statusPanel)
+            add(hFlow(FlowLayout.LEFT, 0, serverLine))
             add(Box.createVerticalStrut(VaultSpacing.px(VaultSpacing.SM)))
             add(secretLine)
             add(Box.createVerticalStrut(VaultSpacing.px(VaultSpacing.SM)))
@@ -308,6 +345,33 @@ class VaultToolWindowPanel(private val project: Project) : JPanel(BorderLayout()
             }
         }
         return panel
+    }
+
+    /** "Default (<name>)" first, then every profile; selection mirrors the project's association. */
+    private fun rebuildProfileModel() {
+        val settings = VaultApplicationSettingsService.getInstance()
+        val default = settings.defaultProfile()
+        val entries = listOf(ProfileEntry("Default (${default.name})", null, default.vaultUrl)) +
+            settings.profiles().map { ProfileEntry(it.name, it.id, it.vaultUrl) }
+        val associated = service.associatedProfileId()
+        syncingProfiles = true
+        try {
+            profileModel.removeAllElements()
+            entries.forEach(profileModel::addElement)
+            profileModel.selectedItem = entries.first { it.profileId == associated }
+        } finally {
+            syncingProfiles = false
+        }
+    }
+
+    /** Re-points the project at another Vault: whatever was shown came from the previous server, so it's dropped. */
+    private fun onProfileSelected(entry: ProfileEntry) {
+        val changed = service.setProfile(entry.profileId)
+        if (changed) {
+            lastSecret = null
+            variablesPanel.setSecret(null)
+        }
+        refreshAll()
     }
 
     private fun emptyVariablesText(): String {

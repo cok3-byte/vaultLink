@@ -11,6 +11,7 @@ import com.intellij.util.xmlb.XmlSerializerUtil
 enum class SecretResolutionMode { AUTO, MANUAL }
 
 class VaultProjectSettingsState {
+    var profileId: String? = null // Vault profile this project talks to; null (or deleted) = the default profile
     var pinnedSecretVersion: Int? = null // null = always "latest"
     var resolutionMode: SecretResolutionMode = SecretResolutionMode.AUTO
     var manualMount: String? = null // only used when resolutionMode == MANUAL
