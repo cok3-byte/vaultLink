@@ -44,6 +44,36 @@ class VaultProjectService(private val project: Project) {
     private var lifecycleManager: TokenLifecycleManager? = null
 
     /**
+     * The Vault profile this project talks to: its explicit association if it still exists,
+     * otherwise the default profile. Read it once per operation and pass it along, so a profile
+     * switch mid-flight can't mix one server's token with another's URL.
+     */
+    fun activeProfile(): VaultProfile =
+        VaultApplicationSettingsService.getInstance().profile(projectSettings.profileId)
+
+    /** The explicit association, or null when the project follows the default profile. */
+    fun associatedProfileId(): String? =
+        projectSettings.profileId?.takeIf { VaultApplicationSettingsService.getInstance().findProfile(it) != null }
+
+    /**
+     * Associates the project with [profileId] (null = follow the default). Returns whether the
+     * effective profile changed; if so, stops renewing the previous profile's token from this
+     * project (the session itself stays: other projects may share it).
+     */
+    fun setProfile(profileId: String?): Boolean {
+        val before = activeProfile().id
+        projectSettings.profileId = profileId
+        val changed = activeProfile().id != before
+        if (changed) {
+            lifecycleManager?.stop()
+            lifecycleManager = null
+        }
+        return changed
+    }
+
+    fun isSessionActive(): Boolean = VaultSessionStatus.isActive(activeProfile().id)
+
+    /**
      * MANUAL mode uses the mount/secret picked via [MountSecretPickerDialog] (stored in
      * [VaultProjectSettingsState]); AUTO mode (default) parses `<mount>.<secret>` from the
      * project name, same as before.
@@ -60,10 +90,11 @@ class VaultProjectService(private val project: Project) {
     }
 
     /** Lists KV v2 mounts available on the configured Vault server, for the manual picker. */
-    fun listMounts(): List<VaultMount> = buildVaultClient().listMounts()
+    fun listMounts(): List<VaultMount> = buildVaultClient(activeProfile()).listMounts()
 
     /** Direct children of [path] within [mount] ("" = mount root), for the manual picker. */
-    fun listSecrets(mount: String, path: String = ""): List<String> = buildVaultClient().listSecrets(mount, path)
+    fun listSecrets(mount: String, path: String = ""): List<String> =
+        buildVaultClient(activeProfile()).listSecrets(mount, path)
 
     fun setResolutionMode(mode: SecretResolutionMode) {
         projectSettings.resolutionMode = mode
@@ -83,11 +114,13 @@ class VaultProjectService(private val project: Project) {
      * pass a version explicitly.
      */
     fun fetchSecret(secretPath: SecretPath, version: Int? = null): VaultSecretData {
+        val profile = activeProfile()
         val effectiveVersion = version ?: projectSettings.pinnedSecretVersion
-        val cacheKey = "${secretPath.mount}.${secretPath.secretName}@${effectiveVersion ?: "latest"}"
+        // Profile id first: the same mount/secret on two Vault servers are different secrets.
+        val cacheKey = "${profile.id}:${secretPath.mount}.${secretPath.secretName}@${effectiveVersion ?: "latest"}"
         cache.get(cacheKey)?.let { return it }
 
-        val client = buildVaultClient()
+        val client = buildVaultClient(profile)
         val data = client.readSecret(secretPath.mount, secretPath.secretName, effectiveVersion)
         cache.put(cacheKey, data)
         return data
@@ -95,15 +128,15 @@ class VaultProjectService(private val project: Project) {
 
     /** Lists available versions so the UI can offer a picker. */
     fun fetchVersions(secretPath: SecretPath): VaultSecretMetadata {
-        val client = buildVaultClient()
+        val client = buildVaultClient(activeProfile())
         return client.readMetadata(secretPath.mount, secretPath.secretName)
     }
 
     /** The user's disabled-keys/edited-values adjustments for [secretPath], empty if none were made. */
-    fun overridesFor(secretPath: SecretPath): SecretOverrides = overridesService.get(secretPath)
+    fun overridesFor(secretPath: SecretPath): SecretOverrides = overridesService.get(activeProfile().id, secretPath)
 
     fun setOverrides(secretPath: SecretPath, overrides: SecretOverrides) {
-        overridesService.set(secretPath, overrides)
+        overridesService.set(activeProfile().id, secretPath, overrides)
     }
 
     /** What actually gets injected: [fetchSecret]'s raw data with [overridesFor] applied on top. */
@@ -128,22 +161,21 @@ class VaultProjectService(private val project: Project) {
 
     /** Forces a fresh login (even if a session is already cached) and stores it, for an explicit "Login" action. */
     fun login(): AuthResult {
-        val httpClient = HttpClient.newBuilder()
-            .sslContext(CustomTlsSocketFactory.buildSslContext(settings.customCaCertPath))
-            .build()
-        return authenticateAndStore(httpClient)
+        val profile = activeProfile()
+        return authenticateAndStore(profile, httpClientFor(profile))
     }
 
-    /** Clears the session and any secrets cached under it, for an explicit "Logout" action. */
+    /** Clears the active profile's session and any secrets cached under it, for an explicit "Logout" action. */
     fun logout() {
+        val profileId = activeProfile().id
         lifecycleManager?.stop()
         lifecycleManager = null
-        VaultCredentialsStore.clear()
-        VaultSessionStatus.clear()
+        VaultCredentialsStore.clear(profileId)
+        VaultSessionStatus.clear(profileId)
         cache.invalidateAll()
         // Edited values are secret material tied to this session; disabled-key exclusions are just
         // names, so they're kept — no reason to make the user redo that on every logout.
-        overridesService.discardValues()
+        overridesService.discardValues(profileId)
     }
 
     /**
@@ -156,56 +188,80 @@ class VaultProjectService(private val project: Project) {
         overridesService.clearAll()
     }
 
-    private fun buildVaultClient(): VaultClient {
-        val httpClient = HttpClient.newBuilder()
-            .sslContext(CustomTlsSocketFactory.buildSslContext(settings.customCaCertPath))
-            .build()
+    private fun httpClientFor(profile: VaultProfile): HttpClient = HttpClient.newBuilder()
+        .sslContext(CustomTlsSocketFactory.buildSslContext(profile.customCaCertPath))
+        .build()
 
-        val resolvedToken = VaultCredentialsStore.read() ?: authenticateAndStore(httpClient).clientToken
+    private fun buildVaultClient(profile: VaultProfile): VaultClient {
+        val httpClient = httpClientFor(profile)
+
+        val resolvedToken = VaultCredentialsStore.read(profile.id)
+            ?: authenticateAndStore(profile, httpClient).clientToken
 
         return VaultClientImpl(
-            vaultUrl = settings.vaultUrl,
-            namespace = settings.namespace,
+            vaultUrl = profile.vaultUrl,
+            namespace = profile.namespace,
             httpClient = httpClient,
             retryPolicy = RetryPolicy(),
             tokenProvider = { resolvedToken },
         )
     }
 
-    private fun authenticateAndStore(httpClient: HttpClient): AuthResult {
-        val strategy = buildAuthStrategy(httpClient)
+    private fun authenticateAndStore(profile: VaultProfile, httpClient: HttpClient): AuthResult {
+        val strategy = buildAuthStrategy(profile, httpClient)
         val auth = strategy.authenticate()
-        VaultCredentialsStore.store(auth.clientToken)
-        VaultSessionStatus.update(settings.authMethod, auth)
-        startLifecycle(strategy, auth)
+        VaultCredentialsStore.store(profile.id, auth.clientToken)
+        VaultSessionStatus.update(profile.id, profile.authMethod, auth)
+        startLifecycle(profile, strategy, auth)
         return auth
     }
 
-    private fun buildAuthStrategy(httpClient: HttpClient): VaultAuthStrategy = AuthStrategyFactory.create(
-        authMethod = settings.authMethod,
-        vaultUrl = settings.vaultUrl,
-        oidcMountPath = settings.oidcMountPath,
-        oidcRole = settings.oidcRole,
-        callbackPort = settings.callbackPort,
-        callbackPath = settings.callbackPath,
-        ldapMountPath = settings.ldapMountPath,
-        userpassMountPath = settings.userpassMountPath,
-        httpClient = httpClient,
-    )
+    private fun buildAuthStrategy(profile: VaultProfile, httpClient: HttpClient): VaultAuthStrategy =
+        AuthStrategyFactory.create(
+            authMethod = profile.authMethod,
+            vaultUrl = profile.vaultUrl,
+            oidcMountPath = profile.oidcMountPath,
+            oidcRole = profile.oidcRole,
+            callbackPort = profile.callbackPort,
+            callbackPath = profile.callbackPath,
+            ldapMountPath = profile.ldapMountPath,
+            userpassMountPath = profile.userpassMountPath,
+            httpClient = httpClient,
+        )
 
-    private fun startLifecycle(strategy: VaultAuthStrategy, auth: AuthResult) {
+    /**
+     * Renews [auth] in the background for as long as [profile] still points at the server that
+     * issued it. If the profile is deleted or re-pointed in Settings (which clears its session), the
+     * renewal must not resurrect the old server's token under that profile id — so both callbacks
+     * check [issuedFor] first, and a stale manager stops itself without touching the store.
+     */
+    private fun startLifecycle(profile: VaultProfile, strategy: VaultAuthStrategy, auth: AuthResult) {
+        val issuedFor = profile.copy()
+        val profileId = issuedFor.id
+        fun stillSameServer(): Boolean =
+            VaultApplicationSettingsService.getInstance().findProfile(profileId)
+                ?.let { !it.invalidatesSessionOf(issuedFor) } == true
+
         lifecycleManager?.stop()
-        lifecycleManager = TokenLifecycleManager(
+        lateinit var manager: TokenLifecycleManager
+        manager = TokenLifecycleManager(
             strategy = strategy,
             onRenewed = {
-                VaultCredentialsStore.store(it.clientToken)
-                VaultSessionStatus.update(strategy.method, it)
+                if (stillSameServer()) {
+                    VaultCredentialsStore.store(profileId, it.clientToken)
+                    VaultSessionStatus.update(profileId, strategy.method, it)
+                } else {
+                    manager.stop()
+                }
             },
             onRenewalFailed = {
-                VaultCredentialsStore.clear()
-                VaultSessionStatus.clear()
+                if (stillSameServer()) {
+                    VaultCredentialsStore.clear(profileId)
+                    VaultSessionStatus.clear(profileId)
+                }
             },
-        ).apply { start(auth) }
+        )
+        lifecycleManager = manager.apply { start(auth) }
     }
 
     fun disposeProject() {

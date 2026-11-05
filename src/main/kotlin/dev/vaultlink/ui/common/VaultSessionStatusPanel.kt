@@ -7,8 +7,13 @@ import dev.vaultlink.ui.design.VaultSpacing
 import java.awt.FlowLayout
 import javax.swing.JPanel
 
-/** Connection-status badge (active/inactive session) shared by Settings and the Tool Window. */
-class VaultSessionStatusPanel : JPanel(FlowLayout(FlowLayout.LEFT, VaultSpacing.px(VaultSpacing.XS), 0)) {
+/**
+ * Connection-status badge (active/inactive session) shared by Settings and the Tool Window.
+ * [profileId] is read on every [refresh], so the badge follows whichever profile is being shown.
+ */
+class VaultSessionStatusPanel(
+    private val profileId: () -> String,
+) : JPanel(FlowLayout(FlowLayout.LEFT, VaultSpacing.px(VaultSpacing.XS), 0)) {
 
     private val label = JBLabel()
 
@@ -18,7 +23,9 @@ class VaultSessionStatusPanel : JPanel(FlowLayout(FlowLayout.LEFT, VaultSpacing.
     }
 
     fun refresh() {
-        label.text = VaultSessionStatus.summary()
-        label.foreground = if (VaultSessionStatus.isActive()) SessionStatusTokens.activeColor() else SessionStatusTokens.inactiveColor()
+        val id = profileId()
+        label.text = VaultSessionStatus.summary(id)
+        label.foreground =
+            if (VaultSessionStatus.isActive(id)) SessionStatusTokens.activeColor() else SessionStatusTokens.inactiveColor()
     }
 }
