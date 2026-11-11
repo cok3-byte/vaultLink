@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-11
+
+### Changed
+
+- Compatible with IntelliJ IDEA 2026.3: the supported build range now extends to `263.*`
+  (2025.1–2026.3), verified with the JetBrains Plugin Verifier. Previously the IDE refused to
+  install or enable the plugin on 2026.3.
+
 ## [1.4.0] - 2026-11-05
 
 ### Added
@@ -144,7 +152,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Verified compatible with IntelliJ Platform builds `251` through `262.*` (2025.1–2026.2) via the
   JetBrains Plugin Verifier.
 
-[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/cok3-byte/vaultLink/compare/1.4.1...HEAD
+[1.4.1]: https://github.com/cok3-byte/vaultLink/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/cok3-byte/vaultLink/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/cok3-byte/vaultLink/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/cok3-byte/vaultLink/compare/1.2.0...1.2.1

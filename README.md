@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/cok3-byte/vaultLink/actions/workflows/build.yml"><img src="https://github.com/cok3-byte/vaultLink/actions/workflows/build.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
-  <img src="https://img.shields.io/badge/IntelliJ%20Platform-251--262.*-orange.svg" alt="IntelliJ Platform compatibility: 251-262.*">
+  <img src="https://img.shields.io/badge/IntelliJ%20Platform-251--263.*-orange.svg" alt="IntelliJ Platform compatibility: 251-263.*">
 </p>
 
 An IntelliJ IDEA plugin that detects a [HashiCorp Vault](https://www.vaultproject.io/) mount/secret
@@ -49,8 +49,8 @@ either injected live into your Run/Debug Configuration, written to a `.env` file
 
 ## Requirements
 
-- IntelliJ IDEA 2025.1 or newer (Community or Ultimate), verified compatible up to 2026.2
-  (build range `251`–`262.*`)
+- IntelliJ IDEA 2025.1 or newer (Community or Ultimate), verified compatible up to 2026.3
+  (build range `251`–`263.*`)
 - JDK 21 to build the plugin
 
 ## Installation
