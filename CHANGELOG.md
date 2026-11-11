@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Changed
+
+- Compatible with IntelliJ IDEA 2026.3: the supported build range now extends to `263.*`
+  (2025.1–2026.3), verified with the JetBrains Plugin Verifier. Previously the IDE refused to
+  install or enable the plugin on 2026.3.
+
 ## [1.4.0] - 2026-11-05
 
 ### Added

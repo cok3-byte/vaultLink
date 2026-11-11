@@ -10,7 +10,7 @@
 
 ```bash
 ./gradlew buildPlugin      # builds the installable plugin ZIP
-./gradlew verifyPlugin     # validates compatibility against the declared build range (251-262.*)
+./gradlew verifyPlugin     # validates compatibility against the declared build range (251-263.*)
 ```
 
 Both must pass — the `Build` workflow runs them on every push/PR. `./gradlew build` also runs

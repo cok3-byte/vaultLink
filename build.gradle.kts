@@ -53,16 +53,16 @@ intellijPlatform {
         }
         ideaVersion {
             sinceBuild = "251"
-            untilBuild = "262.*"
+            untilBuild = "263.*"
         }
     }
     pluginVerification {
         ides {
-            // Explicit endpoints of the declared range (251-262.*) instead of recommended():
+            // Explicit endpoints of the declared range (251-263.*) instead of recommended():
             // this version of the Verifier's "recommended" set tries to resolve a 2025.3 build
             // that doesn't exist (that release cycle jumped straight from 2025.2 to 2026.1).
             ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.1") // compile baseline (251)
-            ide(IntelliJPlatformType.IntellijIdeaUltimate, "2026.2")  // upper bound (262.*)
+            ide(IntelliJPlatformType.IntellijIdeaUltimate, "2026.3")  // upper bound (263.*)
         }
     }
 }
